@@ -538,8 +538,8 @@
               <span class="setting-desc">Number of consecutive frames required to lock in a letter.</span>
             </div>
             <div class="setting-input-row">
-              <input type="range" id="settingHoldFrames" min="3" max="16" step="1" value="8">
-              <span id="valHoldFrames" class="setting-val">8 frames (~0.8s)</span>
+              <input type="range" id="settingHoldFrames" min="3" max="16" step="1" value="4">
+              <span id="valHoldFrames" class="setting-val">4 frames</span>
             </div>
           </div>
 
@@ -549,8 +549,8 @@
               <span class="setting-desc">Minimum model certainty required before confirming a sign.</span>
             </div>
             <div class="setting-input-row">
-              <input type="range" id="settingMinConf" min="50" max="95" step="5" value="75">
-              <span id="valMinConf" class="setting-val">75%</span>
+              <input type="range" id="settingMinConf" min="50" max="95" step="5" value="65">
+              <span id="valMinConf" class="setting-val">65%</span>
             </div>
           </div>
 
@@ -560,8 +560,8 @@
               <span class="setting-desc">Delay between inference requests to balance responsiveness &amp; CPU.</span>
             </div>
             <div class="setting-input-row">
-              <input type="range" id="settingInterval" min="60" max="250" step="10" value="100">
-              <span id="valInterval" class="setting-val">100 ms</span>
+              <input type="range" id="settingInterval" min="60" max="250" step="10" value="60">
+              <span id="valInterval" class="setting-val">60 ms</span>
             </div>
           </div>
 
@@ -590,6 +590,6 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script type="module" src="{% static 'recognizer/app.js' %}?v=2.5"></script>
+  <script type="module" src="{% static 'recognizer/app.js' %}?v=2.6"></script>
 </body>
 </html>

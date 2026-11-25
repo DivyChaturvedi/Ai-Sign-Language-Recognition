@@ -45,7 +45,12 @@ CSRF_TRUSTED_ORIGINS = [
     f"https://{h.lstrip('.')}" if not h.startswith('.') else f"https://*{h}"
     for h in ALLOWED_HOSTS
     if h not in ('localhost', '127.0.0.1', '[::1]', '*')
-] + ['https://*.onrender.com']
+] + [
+    'https://*.onrender.com',
+    'https://*.trycloudflare.com',
+    'https://*.ngrok-free.app',
+    'https://*.lhr.life',
+]
 
 
 # Application definition

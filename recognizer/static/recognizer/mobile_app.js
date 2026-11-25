@@ -62,7 +62,7 @@ async function createLandmarker() {
     baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
     runningMode: "VIDEO",
     numHands: 2,
-    minHandDetectionConfidence: 0.6,
+    minHandDetectionConfidence: 0.5,
     minHandPresenceConfidence: 0.5,
     minTrackingConfidence: 0.5,
   };
@@ -147,7 +147,7 @@ function loop() {
             drawing.drawLandmarks(lm, { color: "#ffffff", radius: 3 });
           }
         }
-        if (now - lastPushAt >= 160) {
+        if (now - lastPushAt >= 100) {
           lastPushAt = now;
           pushLandmarks(result.landmarks);
         }

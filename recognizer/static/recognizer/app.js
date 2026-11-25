@@ -4,19 +4,32 @@
 
 // ---- Default Settings & State ----
 let CONFIG = {
-  predictIntervalMs: 100,
-  holdFrames: 8,
-  minConfidence: 0.75,
+  predictIntervalMs: 60,
+  holdFrames: 4,
+  minConfidence: 0.65,
   soundEffects: true,
   skeletonStyle: "cyber", // cyber, emerald, minimal, hidden
   mirrored: true,
+  configVersion: 2,
 };
 
-// Load saved config
+// Load saved config (upgrade v1 slower defaults once to v2 fast defaults)
 try {
   const saved = localStorage.getItem("signtalk_config");
   if (saved) {
-    CONFIG = { ...CONFIG, ...JSON.parse(saved) };
+    const parsed = JSON.parse(saved);
+    if (!parsed.configVersion || parsed.configVersion < 2) {
+      CONFIG = {
+        ...CONFIG,
+        soundEffects: parsed.soundEffects ?? CONFIG.soundEffects,
+        skeletonStyle: parsed.skeletonStyle ?? CONFIG.skeletonStyle,
+        mirrored: parsed.mirrored ?? CONFIG.mirrored,
+        configVersion: 2,
+      };
+      localStorage.setItem("signtalk_config", JSON.stringify(CONFIG));
+    } else {
+      CONFIG = { ...CONFIG, ...parsed };
+    }
   }
 } catch (e) {
   console.warn("Could not load config from localStorage", e);
@@ -396,7 +409,7 @@ async function createLandmarker() {
     baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
     runningMode: "VIDEO",
     numHands: 2,
-    minHandDetectionConfidence: 0.65,
+    minHandDetectionConfidence: 0.5,
     minHandPresenceConfidence: 0.5,
     minTrackingConfidence: 0.5,
   };
@@ -446,8 +459,8 @@ async function startCamera(deviceId = null) {
 
   const constraints = {
     video: deviceId
-      ? { deviceId: { exact: deviceId } }
-      : { facingMode: "user" },
+      ? { deviceId: { exact: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } }
+      : { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
     audio: false,
   };
 
@@ -776,28 +789,35 @@ let streak = 0;
 let streakGrace = 0;
 let locked = null;
 let emaScores = {};
-const EMA_ALPHA = 0.55;
+const EMA_ALPHA = 0.72;
 
 function resetSmoother() {
   emaScores = {};
 }
 
 function smoothPrediction(label, confidence, candidates = []) {
-  // Decay previous class scores and blend current candidate distribution
-  const decayed = {};
-  for (const [cls, score] of Object.entries(emaScores)) {
-    const val = score * (1 - EMA_ALPHA);
-    if (val >= 0.01) decayed[cls] = val;
-  }
-
   const incoming = (candidates && candidates.length > 0)
     ? candidates
     : (label ? [{ label, confidence }] : []);
 
-  for (const c of incoming) {
-    decayed[c.label] = (decayed[c.label] || 0) + EMA_ALPHA * c.confidence;
+  // Avoid artificial cold-start confidence drop on the very first frame after hand enters
+  if (Object.keys(emaScores).length === 0) {
+    const fresh = {};
+    for (const c of incoming) {
+      fresh[c.label] = c.confidence;
+    }
+    emaScores = fresh;
+  } else {
+    const decayed = {};
+    for (const [cls, score] of Object.entries(emaScores)) {
+      const val = score * (1 - EMA_ALPHA);
+      if (val >= 0.01) decayed[cls] = val;
+    }
+    for (const c of incoming) {
+      decayed[c.label] = (decayed[c.label] || 0) + EMA_ALPHA * c.confidence;
+    }
+    emaScores = decayed;
   }
-  emaScores = decayed;
 
   const sorted = Object.entries(emaScores)
     .sort((a, b) => b[1] - a[1])
@@ -1105,7 +1125,7 @@ let quizAttempts = 0;
 let quizCorrect = 0;
 let currentTargetLetter = "A";
 let quizHoldStreak = 0;
-const QUIZ_HOLD_REQUIRED = 6;
+const QUIZ_HOLD_REQUIRED = 3;
 
 // Populated dynamically from /api/info/ so quizzes only challenge trained model classes
 const SUPPORTED_SIGNS = {
@@ -1848,13 +1868,14 @@ if (btnSaveSettings) {
 
 if (btnResetSettings) {
   btnResetSettings.addEventListener("click", () => {
-    CONFIG.holdFrames = 8;
-    CONFIG.minConfidence = 0.75;
-    CONFIG.predictIntervalMs = 100;
+    CONFIG.holdFrames = 4;
+    CONFIG.minConfidence = 0.65;
+    CONFIG.predictIntervalMs = 60;
     CONFIG.skeletonStyle = "cyber";
+    CONFIG.configVersion = 2;
     openSettings();
     saveConfig();
-    showToast("Reset to default settings");
+    showToast("Reset to fast default settings");
   });
 }
 

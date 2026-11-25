@@ -29,3 +29,9 @@ scratch/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local command cheat sheets (keep local only)
+COMMANDS.txt
+COMMANDS.pdf
+commands.txt
+commands.pdf
