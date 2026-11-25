@@ -153,3 +153,37 @@ class PredictAPITest(TestCase):
         res_no = predict_action([_synthetic_beak_pinch()])
         self.assertIsNotNone(res_no)
         self.assertEqual(res_no["action"], "No")
+
+    def test_remote_mobile_camera_flow(self):
+        # Invalid session ID rejected
+        self.assertEqual(self.client.get("/mobile/bad!id/").status_code, 400)
+
+        # Mobile camera page loads
+        r_page = self.client.get("/mobile/TEST12/")
+        self.assertEqual(r_page.status_code, 200)
+        self.assertContains(r_page, "TEST12")
+
+        # Initial poll before mobile pushes -> connected=False
+        r_poll0 = self.client.get("/api/remote_poll/TEST12/?lang=asl")
+        self.assertEqual(r_poll0.status_code, 200)
+        self.assertFalse(r_poll0.json()["connected"])
+
+        # Mobile pushes hand landmarks -> laptop poll receives connected=True + label
+        r_push = self.client.post(
+            "/api/remote_push/TEST12/",
+            data=json.dumps({"hands": [fake_hand()]}),
+            content_type="application/json",
+        )
+        self.assertIn(r_push.status_code, (200, 503))
+        if r_push.status_code == 200:
+            r_poll1 = self.client.get("/api/remote_poll/TEST12/?lang=asl")
+            self.assertEqual(r_poll1.status_code, 200)
+            data = r_poll1.json()
+            self.assertTrue(data["connected"])
+            self.assertEqual(data["hand_count"], 1)
+            self.assertIsNotNone(data["label"])
+
+        # Disconnect clears session
+        r_disc = self.client.get("/api/remote_poll/TEST12/?disconnect=1")
+        self.assertEqual(r_disc.status_code, 200)
+        self.assertFalse(r_disc.json()["connected"])

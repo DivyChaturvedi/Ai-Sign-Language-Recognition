@@ -163,6 +163,15 @@ const btnSwitchChartAsl = getEl("btnSwitchChartAsl");
 const btnSwitchChartIsl = getEl("btnSwitchChartIsl");
 const btnSwitchChartIslGov = getEl("btnSwitchChartIslGov");
 
+// QR Modal Elements
+const btnOpenQR = getEl("btnOpenQR");
+const qrModal = getEl("qrModal");
+const btnCloseQR = getEl("btnCloseQR");
+const qrCodeContainer = getEl("qrCodeContainer");
+const qrSyncStatus = getEl("qrSyncStatus");
+const remoteCamOverlay = getEl("remoteCamOverlay");
+const btnDisconnectMobile = getEl("btnDisconnectMobile");
+
 // History Elements
 const historyList = getEl("historyList");
 const btnExportHistory = getEl("btnExportHistory");
@@ -1005,6 +1014,7 @@ function drawSkeleton(landmarks) {
 }
 
 function loop() {
+  if (remoteMode) return;
   if (!isVideoPaused && video && video.currentTime !== lastVideoTime) {
     lastVideoTime = video.currentTime;
     const now = performance.now();
@@ -1506,6 +1516,152 @@ if (btnCloseChartModal) {
 if (chartModal) {
   chartModal.addEventListener("click", (e) => {
     if (e.target === chartModal) chartModal.classList.remove("open");
+  });
+}
+
+// ---- Mobile QR Code & Remote Camera Sync ----
+let remoteMode = false;
+let remoteSessionId = null;
+let remotePollTimer = null;
+let lastRemoteSeq = -1;
+
+function stopLaptopCamera() {
+  if (currentStream) {
+    currentStream.getTracks().forEach((t) => t.stop());
+    currentStream = null;
+  }
+  if (video) video.srcObject = null;
+  if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function generateSessionId() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+function stopRemotePolling(notifyDisconnect = false) {
+  if (remotePollTimer) {
+    clearInterval(remotePollTimer);
+    remotePollTimer = null;
+  }
+  if (notifyDisconnect && remoteSessionId) {
+    fetch(`/api/remote_poll/${encodeURIComponent(remoteSessionId)}/?disconnect=1`).catch(() => {});
+  }
+}
+
+async function disconnectMobileCamera() {
+  stopRemotePolling(true);
+  remoteMode = false;
+  lastRemoteSeq = -1;
+  if (remoteCamOverlay) remoteCamOverlay.classList.add("hidden");
+  cameraState = "starting";
+  syncStatus();
+  try {
+    await startCamera(cameraSelect ? cameraSelect.value : null);
+    cameraState = "active";
+    syncStatus();
+    requestAnimationFrame(loop);
+    showToast("Switched back to laptop camera");
+  } catch (err) {
+    cameraState = "error";
+    showCameraErrorOverlay(err);
+    syncStatus();
+  }
+}
+
+function startRemotePolling(sessionId) {
+  stopRemotePolling(false);
+  remotePollTimer = setInterval(async () => {
+    try {
+      const lang = languageSelect ? languageSelect.value : "asl";
+      const res = await fetch(`/api/remote_poll/${encodeURIComponent(sessionId)}/?lang=${encodeURIComponent(lang)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data.connected) {
+        if (!remoteMode) {
+          remoteMode = true;
+          stopLaptopCamera();
+          if (qrModal) qrModal.classList.remove("open");
+          if (remoteCamOverlay) remoteCamOverlay.classList.remove("hidden");
+          if (qrSyncStatus) qrSyncStatus.textContent = "✅ Phone connected!";
+          cameraState = "active";
+          showToast("📱 Mobile camera connected! Laptop camera turned off.");
+        }
+
+        if (data.seq !== lastRemoteSeq) {
+          lastRemoteSeq = data.seq;
+          if (handsText) {
+            handsText.textContent = `${data.hand_count} Hand${data.hand_count === 1 ? "" : "s"}`;
+          }
+          if (data.hand_count === 0) {
+            handLost();
+            syncStatus("Mobile connected • Show hand");
+          } else if (data.needs_two_hands) {
+            resetHold();
+            resetSmoother();
+            locked = null;
+            if (letterEl) letterEl.textContent = "–";
+            if (confidenceTag) confidenceTag.textContent = "0%";
+            syncStatus("ISL needs 2 hands (1 detected)");
+          } else if (data.label) {
+            syncStatus(`Mobile: ${data.language.toUpperCase()}`);
+            handlePrediction(data.label, data.confidence, data.candidates || []);
+          }
+        }
+      } else if (remoteMode) {
+        if (qrSyncStatus) qrSyncStatus.textContent = "⏳ Phone disconnected. Waiting…";
+        syncStatus("Mobile disconnected — waiting…");
+      }
+    } catch (err) {
+      console.warn("Remote poll error:", err);
+    }
+  }, 180);
+}
+
+if (btnOpenQR) {
+  btnOpenQR.addEventListener("click", () => {
+    if (!remoteSessionId) remoteSessionId = generateSessionId();
+    if (qrModal) qrModal.classList.add("open");
+    const targetUrl = `${window.location.origin}/mobile/${remoteSessionId}/`;
+    const qrUrlText = getEl("qrUrlText");
+    if (qrUrlText) qrUrlText.textContent = targetUrl;
+    if (qrSyncStatus) {
+      qrSyncStatus.textContent = remoteMode
+        ? "✅ Phone connected!"
+        : "⏳ Waiting for phone to scan…";
+    }
+    if (qrCodeContainer && typeof QRCode !== "undefined") {
+      qrCodeContainer.innerHTML = "";
+      new QRCode(qrCodeContainer, {
+        text: targetUrl,
+        width: 200,
+        height: 200,
+        colorDark: "#1e1b4b",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H,
+      });
+    }
+    startRemotePolling(remoteSessionId);
+  });
+}
+
+if (btnDisconnectMobile) {
+  btnDisconnectMobile.addEventListener("click", disconnectMobileCamera);
+}
+
+if (btnCloseQR) {
+  btnCloseQR.addEventListener("click", () => {
+    if (qrModal) qrModal.classList.remove("open");
+    if (!remoteMode) stopRemotePolling(false);
+  });
+}
+
+if (qrModal) {
+  qrModal.addEventListener("click", (e) => {
+    if (e.target === qrModal) {
+      qrModal.classList.remove("open");
+      if (!remoteMode) stopRemotePolling(false);
+    }
   });
 }
 

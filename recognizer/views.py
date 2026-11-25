@@ -1,6 +1,9 @@
 import json
 import logging
 import math
+import re
+import threading
+import time
 from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -244,3 +247,138 @@ def api_dictionary(request):
         "isl_gov_chart_url": "https://static.vikaspedia.in/mediastorage/image/alphabets_in_isl.png",
         "chart_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Asl_alphabet_gallaudet.svg",
     })
+
+
+# ---- Remote Mobile Camera Session Store ----
+_REMOTE_SESSIONS = {}
+_REMOTE_LOCK = threading.Lock()
+_VALID_SESSION_RE = re.compile(r"^[A-Za-z0-9_-]{4,32}$")
+_REMOTE_TTL_SECONDS = 3600
+_REMOTE_HEARTBEAT_TIMEOUT = 8.0
+
+
+def _cleanup_remote_sessions(now):
+    stale = [k for k, v in _REMOTE_SESSIONS.items() if now - v.get("created_at", now) > _REMOTE_TTL_SECONDS]
+    for k in stale:
+        _REMOTE_SESSIONS.pop(k, None)
+    while len(_REMOTE_SESSIONS) > 100:
+        oldest = min(_REMOTE_SESSIONS, key=lambda k: _REMOTE_SESSIONS[k].get("last_seen", 0))
+        _REMOTE_SESSIONS.pop(oldest, None)
+
+
+def _get_or_create_session(session_id):
+    now = time.time()
+    _cleanup_remote_sessions(now)
+    sess = _REMOTE_SESSIONS.get(session_id)
+    if sess is None:
+        sess = {
+            "created_at": now,
+            "last_seen": 0.0,
+            "language": "asl",
+            "hand_count": 0,
+            "needs_two_hands": False,
+            "label": None,
+            "confidence": 0.0,
+            "candidates": [],
+            "seq": 0,
+        }
+        _REMOTE_SESSIONS[session_id] = sess
+    return sess
+
+
+def mobile_camera_view(request, session_id):
+    """Lightweight camera-only page for phone QR scanning."""
+    if not _VALID_SESSION_RE.match(session_id):
+        return JsonResponse({"error": "Invalid session ID"}, status=400)
+    with _REMOTE_LOCK:
+        _get_or_create_session(session_id)
+    return render(request, "recognizer/mobile_camera.html", {"session_id": session_id})
+
+
+@require_POST
+def api_remote_push(request, session_id):
+    """Receive hand landmarks from mobile camera, run prediction, and store for laptop."""
+    if not _VALID_SESSION_RE.match(session_id):
+        return JsonResponse({"error": "Invalid session ID"}, status=400)
+
+    try:
+        data = json.loads(request.body)
+        if not isinstance(data, dict):
+            raise ValueError("JSON body must be an object")
+        hands = _parse_hands(data.get("hands", []), allow_empty=True)
+    except (json.JSONDecodeError, ValueError, TypeError) as exc:
+        return JsonResponse({"error": f"Invalid input: {exc}"}, status=400)
+
+    with _REMOTE_LOCK:
+        sess = _get_or_create_session(session_id)
+        language = sess["language"]
+
+    label = None
+    confidence = 0.0
+    candidates = []
+    needs_two_hands = False
+
+    if len(hands) > 0:
+        if language == "isl" and len(hands) < 2:
+            needs_two_hands = True
+        else:
+            use_hands = hands if language == "isl" else [hands[0]]
+            try:
+                label, confidence, candidates = predict(language, use_hands)
+            except FileNotFoundError:
+                return JsonResponse({"error": f"{language.upper()} model not trained yet."}, status=503)
+            except ValueError as exc:
+                return JsonResponse({"error": str(exc)}, status=400)
+            except Exception:
+                logger.exception("Remote prediction error for session=%s", session_id)
+                return JsonResponse({"error": "Prediction engine failure"}, status=500)
+
+    now = time.time()
+    with _REMOTE_LOCK:
+        sess = _get_or_create_session(session_id)
+        sess["last_seen"] = now
+        sess["hand_count"] = len(hands)
+        sess["needs_two_hands"] = needs_two_hands
+        sess["label"] = label
+        sess["confidence"] = confidence
+        sess["candidates"] = candidates
+        sess["seq"] += 1
+
+    return JsonResponse({
+        "ok": True,
+        "language": language,
+        "label": label,
+        "confidence": confidence,
+        "needs_two_hands": needs_two_hands,
+    })
+
+
+@require_GET
+def api_remote_poll(request, session_id):
+    """Laptop polls latest mobile prediction and syncs selected language."""
+    if not _VALID_SESSION_RE.match(session_id):
+        return JsonResponse({"error": "Invalid session ID"}, status=400)
+
+    if request.GET.get("disconnect") == "1":
+        with _REMOTE_LOCK:
+            _REMOTE_SESSIONS.pop(session_id, None)
+        return JsonResponse({"connected": False})
+
+    lang = request.GET.get("lang")
+    now = time.time()
+    with _REMOTE_LOCK:
+        sess = _get_or_create_session(session_id)
+        if lang in settings.MODEL_PATHS:
+            sess["language"] = lang
+        connected = (now - sess["last_seen"]) <= _REMOTE_HEARTBEAT_TIMEOUT
+        payload = {
+            "connected": connected,
+            "seq": sess["seq"],
+            "language": sess["language"],
+            "hand_count": sess["hand_count"],
+            "needs_two_hands": sess["needs_two_hands"],
+            "label": sess["label"],
+            "confidence": sess["confidence"],
+            "candidates": sess["candidates"],
+        }
+    return JsonResponse(payload)
