@@ -1,0 +1,555 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>SignTalk AI | Intelligent Sign Language Translation &amp; Visual Learning Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'recognizer/style.css' %}">
+</head>
+<body>
+  <!-- 3D Animated Ambient Background Orbs & Cyber Grid -->
+  <div class="ambient-3d-bg" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="grid-mesh-overlay"></div>
+  </div>
+
+  <div class="app-layout">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="brand">
+        <a href="/" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: inherit;">
+          <div class="brand-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+              <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
+              <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+              <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">SignTalk<span class="brand-badge">AI</span></span>
+            <span class="brand-subtitle">Vision Translation &amp; Visual Learning Studio</span>
+          </div>
+        </a>
+      </div>
+
+      <!-- Studio Mode Switcher: Dedicated Pages -->
+      <nav class="studio-nav-switcher" aria-label="Studio Page Navigation">
+        <a href="/" class="studio-nav-pill active">
+          <span class="pill-icon">🔤</span>
+          <span>Alphabet (A-Z)</span>
+        </a>
+        <a href="/actions/" class="studio-nav-pill">
+          <span class="pill-icon">🗣️</span>
+          <span>Action &amp; Voice Studio</span>
+          <span class="pill-badge">Live Voice</span>
+        </a>
+      </nav>
+
+      <div class="header-actions">
+        <!-- Language Switcher -->
+        <div class="lang-selector-wrap">
+          <label for="languageSelect" class="sr-only">Sign Language</label>
+          <div class="custom-select-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <select id="languageSelect" class="custom-select">
+            <option value="asl" selected>ASL (American • 1 Hand)</option>
+            <option value="isl">ISL (Indian • 2 Hands)</option>
+          </select>
+        </div>
+
+        <!-- Audio Feedback Toggle -->
+        <button id="btnAudioToggle" class="icon-btn" title="Toggle Sound Effects" aria-label="Toggle Sound Effects">
+          <svg id="iconSoundOn" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <svg id="iconSoundOff" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="btnThemeToggle" class="icon-btn" title="Switch Theme (Dark / Cyber / Light)" aria-label="Switch Theme">
+          <svg id="themeIconSun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+
+        <!-- Settings Button -->
+        <button id="btnOpenSettings" class="icon-btn" title="Settings &amp; Calibration" aria-label="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Studio Grid (Side-by-Side: Camera on Left, Recognition & Translator on Right) -->
+    <main class="studio-grid">
+      <!-- Left Column: Camera Studio (Vision Stage Only) -->
+      <section class="vision-column">
+        <div class="glass-card camera-card tilt-3d">
+          <!-- Video Stage -->
+          <div class="video-container" id="videoContainer">
+            <video id="video" autoplay playsinline muted></video>
+            <canvas id="overlay"></canvas>
+
+            <!-- Camera Error & Permission Recovery Overlay -->
+            <div id="cameraErrorOverlay" class="camera-error-overlay hidden">
+              <div class="cam-err-icon">📷⚠️</div>
+              <div class="cam-err-title" id="cameraErrorTitle">Camera Access Needed</div>
+              <div class="cam-err-desc" id="cameraErrorDesc">
+                Please allow camera access in your browser (check the lock/camera icon in URL bar) or close any other app using your webcam.
+              </div>
+              <div class="cam-err-actions">
+                <button id="btnRetryCamera" class="control-btn primary" type="button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                  <span>Allow / Retry Camera</span>
+                </button>
+              </div>
+            </div>
+            
+            <!-- Futuristic Holographic 3D HUD Brackets & Scanline -->
+            <div class="hud-corners" aria-hidden="true">
+              <span class="hud-bracket tl"></span>
+              <span class="hud-bracket tr"></span>
+              <span class="hud-bracket bl"></span>
+              <span class="hud-bracket br"></span>
+              <div class="hud-scanline"></div>
+            </div>
+            
+            <!-- Canvas HUD Badges -->
+            <div class="hud-layer">
+              <div class="hud-top">
+                <span id="badgeStatus" class="hud-pill status-pill">
+                  <span class="status-dot"></span>
+                  <span id="statusText">Initializing…</span>
+                </span>
+                <span id="badgeHands" class="hud-pill hands-pill">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/></svg>
+                  <span id="handsText">0 Hands</span>
+                </span>
+              </div>
+              <div class="hud-bottom">
+                <span id="badgeFps" class="hud-pill stat-pill">0 FPS</span>
+                <span id="badgeLatency" class="hud-pill stat-pill">0 ms</span>
+              </div>
+            </div>
+
+            <!-- Lock-in Radial Wave Effect -->
+            <div id="lockWave" class="lock-wave"></div>
+          </div>
+
+          <!-- Camera Controls Toolbar -->
+          <div class="camera-toolbar">
+            <div class="camera-select-wrap">
+              <select id="cameraSelect" class="camera-select" title="Switch Camera"></select>
+            </div>
+            <div class="camera-action-group">
+              <button id="btnPauseCam" class="tool-btn" title="Pause / Resume Video" aria-label="Pause Camera">
+                <svg id="iconPause" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                <svg id="iconPlay" class="hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </button>
+              <button id="btnMirrorCam" class="tool-btn active" title="Toggle Mirror View" aria-label="Toggle Mirror View">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12l5-5m-5 5 5 5M22 12l-5-5m5 5-5 5"/></svg>
+              </button>
+              <button id="btnToggleSkeleton" class="tool-btn active" title="Toggle Landmark Skeleton" aria-label="Toggle Skeleton">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="19" cy="6" r="2"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><circle cx="5" cy="18" r="2"/><line x1="12" y1="9" x2="12" y2="15"/></svg>
+              </button>
+              <button id="btnCaptureFrame" class="tool-btn" title="Download Screenshot" aria-label="Capture Screenshot">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Alphabet Recognition HUD & Live Text Translation Workspace -->
+      <section class="workspace-column">
+        <!-- 1. Live Recognition HUD Card (Moved to Right Side of Camera!) -->
+        <div class="glass-card recognition-card tilt-3d">
+          <div class="recog-primary">
+            <div class="letter-display-wrap">
+              <div id="letter" class="letter-box">–</div>
+              <svg class="ring-progress" viewBox="0 0 100 100">
+                <circle class="ring-bg" cx="50" cy="50" r="44"/>
+                <circle id="ringProgressCircle" class="ring-fg" cx="50" cy="50" r="44"/>
+              </svg>
+            </div>
+            <div class="recog-meta">
+              <div class="recog-header">
+                <span class="label-heading">Recognized Sign</span>
+                <span id="confidenceTag" class="confidence-tag">0%</span>
+              </div>
+              <div class="hold-indicator">
+                <div class="hold-label-row">
+                  <span>Hold Stability</span>
+                  <span id="holdFramesText">0 / 8</span>
+                </div>
+                <div class="progress-track">
+                  <div id="holdBar" class="progress-fill"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top-3 Alternative Probability Bars -->
+          <div class="candidates-section">
+            <div class="candidates-title">Probability Breakdown</div>
+            <div id="candidatesList" class="candidates-list">
+              <div class="candidate-empty">Position hand to analyze probabilities…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Interactive Workspace & Text Functions -->
+        <div class="glass-card workspace-card">
+          <!-- Workspace Navigation Tabs -->
+          <nav class="workspace-tabs" role="tablist">
+            <button class="tab-btn active" data-tab="tab-translate" role="tab" aria-selected="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><path d="m2 14 3 6 3-6"/></svg>
+              <span>Live Translator</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-practice" role="tab" aria-selected="false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+              <span>Practice Arena</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-gallery" role="tab" aria-selected="false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Sign Images Gallery</span>
+              <span class="tab-pill-badge">Charts &amp; Signs</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-history" role="tab" aria-selected="false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>History</span>
+            </button>
+          </nav>
+
+          <!-- Tab 1: Live Translator & Sentence Construction -->
+          <div id="tab-translate" class="tab-panel active">
+            <!-- Output Text Display Container -->
+            <div class="output-container">
+              <div class="output-header">
+                <span class="output-title">Recognized Sentence</span>
+                <div class="output-meta">
+                  <span id="charCount" class="counter-badge">0 chars</span>
+                  <span id="wordCount" class="counter-badge">0 words</span>
+                </div>
+              </div>
+              <textarea id="text" class="text-display" aria-live="polite" placeholder="Hold your signs steadily or type here directly with keyboard…" rows="3" spellcheck="false"></textarea>
+            </div>
+
+            <!-- Smart Predictive Word Suggestions -->
+            <div class="suggestions-section">
+              <span class="section-micro-label">Suggested Words:</span>
+              <div id="suggestions" class="suggestions-chips"></div>
+            </div>
+
+            <!-- Primary Sentence Controls -->
+            <div class="text-controls-grid">
+              <button id="btnSpeak" class="control-btn primary" title="Read Aloud Sentence">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                <span>Speak (TTS)</span>
+              </button>
+              <button id="btnSpace" class="control-btn" title="Insert Space">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="m15 16 4-4-4-4"/></svg>
+                <span>Space</span>
+              </button>
+              <button id="btnBackspace" class="control-btn" title="Delete Last Character">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>
+                <span>Backspace</span>
+              </button>
+              <button id="btnCopy" class="control-btn success" title="Copy Sentence to Clipboard">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <span>Copy</span>
+              </button>
+              <button id="btnClear" class="control-btn danger" title="Clear Entire Text">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                <span>Clear All</span>
+              </button>
+            </div>
+
+            <!-- Quick Phrases Tray -->
+            <div class="quick-phrases-card">
+              <span class="section-micro-label">Quick Common Phrases:</span>
+              <div class="phrase-chips">
+                <button class="phrase-chip" data-phrase="Hello">👋 Hello</button>
+                <button class="phrase-chip" data-phrase="Thank you">🙏 Thank you</button>
+                <button class="phrase-chip" data-phrase="Yes">👍 Yes</button>
+                <button class="phrase-chip" data-phrase="No">👎 No</button>
+                <button class="phrase-chip" data-phrase="Please help">🆘 Help</button>
+                <button class="phrase-chip" data-phrase="I love you">❤️ I Love You</button>
+                <button class="phrase-chip" data-phrase="Good morning">☀️ Good Morning</button>
+              </div>
+            </div>
+
+            <!-- Speech Synthesis Engine Options -->
+            <div class="speech-settings-bar">
+              <div class="speech-toggle-group">
+                <label class="switch-control">
+                  <input type="checkbox" id="chkAutoSpeak">
+                  <span class="slider"></span>
+                  <span class="switch-label">Auto-Speak Completed Words</span>
+                </label>
+              </div>
+              <div class="voice-picker">
+                <label for="voiceSelect" class="sr-only">Voice Selector</label>
+                <select id="voiceSelect" class="custom-select mini" title="Select Voice"></select>
+              </div>
+              <div class="rate-slider-wrap">
+                <label for="speechRateSlider" class="rate-label">Speed: <span id="rateVal">1.0x</span></label>
+                <input type="range" id="speechRateSlider" min="0.5" max="1.8" step="0.1" value="1.0" class="mini-slider">
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 2: Gamified Practice & Quiz Arena -->
+          <div id="tab-practice" class="tab-panel">
+            <div class="practice-arena">
+              <!-- Score and Stats Bar -->
+              <div class="quiz-stats-row">
+                <div class="stat-box">
+                  <span class="stat-number" id="quizScore">0</span>
+                  <span class="stat-label">Score</span>
+                </div>
+                <div class="stat-box">
+                  <span class="stat-number" id="quizStreak">0</span>
+                  <span class="stat-label">Streak 🔥</span>
+                </div>
+                <div class="stat-box">
+                  <span class="stat-number" id="quizAccuracy">100%</span>
+                  <span class="stat-label">Accuracy</span>
+                </div>
+              </div>
+
+              <!-- Challenge Target Sign Card -->
+              <div class="challenge-card">
+                <div class="challenge-badge">Target Gesture Challenge</div>
+                <div class="challenge-img-wrap">
+                  <img id="challengeImg" src="{% static 'recognizer/img/signs/asl_a.svg' %}" alt="Practice Target Sign" class="challenge-img">
+                </div>
+                <div id="challengeLetter" class="challenge-letter">Sign: "A"</div>
+                <div id="challengeHint" class="challenge-hint">Make a fist with thumb resting alongside the index finger.</div>
+                
+                <div class="challenge-progress">
+                  <span id="challengeHoldText">Hold sign steadily in view…</span>
+                  <div class="progress-track">
+                    <div id="challengeHoldBar" class="progress-fill challenge-fill"></div>
+                  </div>
+                </div>
+
+                <div id="challengeFeedback" class="challenge-feedback hidden">Great Job! +10 Points!</div>
+              </div>
+
+              <!-- Practice Controls -->
+              <div class="quiz-controls">
+                <button id="btnSkipChallenge" class="quiz-btn secondary">Skip Sign</button>
+                <button id="btnResetQuiz" class="quiz-btn ghost">Reset Game</button>
+                <button id="btnNextChallenge" class="quiz-btn primary">Next Gesture &rarr;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 3: Visual Sign Images Gallery (Alphabet Guide) -->
+          <div id="tab-gallery" class="tab-panel">
+            <div class="gallery-wrapper">
+              <!-- Full Poster Banner -->
+              <div class="chart-hero-banner">
+                <div class="chart-banner-info">
+                  <span class="chart-tag">Comprehensive Visual Reference</span>
+                  <h3 class="chart-title">Manual Alphabet Charts (ASL &amp; ISL)</h3>
+                  <p class="chart-desc">Inspect all 26 official hand signs side-by-side or launch the high-resolution charts.</p>
+                </div>
+                <div class="chart-btn-group">
+                  <button id="btnOpenFullChartAsl" class="chart-view-btn" type="button">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                    <span>View ASL Chart 🇺🇸</span>
+                  </button>
+                  <button id="btnOpenFullChartIsl" class="chart-view-btn isl-btn" type="button">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <span>View ISL Chart 🇮🇳</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Gallery Search and Filter Controls -->
+              <div class="gallery-controls-card">
+                <div class="gallery-search-row">
+                  <div class="search-input-wrap">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    <input type="text" id="gallerySearch" class="search-input" placeholder="Search letter, e.g. 'A', 'Namaste', 'Hello'…">
+                  </div>
+                  <span id="galleryCountBadge" class="gallery-count-badge">Loading signs…</span>
+                </div>
+
+                <!-- Category Tabs -->
+                <div class="gallery-cat-tabs">
+                  <button class="cat-pill active" data-category="all">All Signs</button>
+                  <button class="cat-pill" data-category="asl">ASL (A–Z)</button>
+                  <button class="cat-pill" data-category="isl">ISL (Indian Sign Language)</button>
+                  <button class="cat-pill" data-category="numbers">Numbers (0–9)</button>
+                </div>
+
+                <!-- Alphabet Quick-Jump Strip -->
+                <div class="alpha-quick-strip" id="alphaQuickStrip">
+                  <!-- Generated dynamically A-Z buttons -->
+                </div>
+              </div>
+
+              <!-- Cards Grid Container -->
+              <div id="galleryCardsGrid" class="gallery-cards-grid">
+                <!-- Dynamically populated sign cards -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab 4: Transcript History Log -->
+          <div id="tab-history" class="tab-panel">
+            <div class="history-header">
+              <span class="history-title">Session Translation Log</span>
+              <div class="history-actions">
+                <button id="btnExportHistory" class="small-tool-btn" title="Download text transcript">Export TXT</button>
+                <button id="btnClearHistory" class="small-tool-btn danger" title="Clear log history">Clear</button>
+              </div>
+            </div>
+            <div id="historyList" class="history-list">
+              <div class="history-empty">Your translated sentences will be recorded here during your session.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Sign Detail Inspection Lightbox Modal -->
+    <div id="signLightboxModal" class="modal-backdrop">
+      <div class="modal-dialog lightbox-dialog">
+        <div class="modal-header">
+          <div class="lightbox-title-wrap">
+            <span id="lightboxBadge" class="category-badge">ASL Sign</span>
+            <h3 id="lightboxTitle" class="modal-title">Letter A</h3>
+          </div>
+          <button id="btnCloseLightbox" class="icon-btn close-modal" aria-label="Close modal">&times;</button>
+        </div>
+        <div class="modal-body lightbox-body">
+          <div class="lightbox-image-wrap">
+            <img id="lightboxImg" src="" alt="Sign Demonstration" class="lightbox-img">
+          </div>
+          <div class="lightbox-info-pane">
+            <div class="info-group">
+              <h4 class="info-heading">Sign Description</h4>
+              <p id="lightboxSummary" class="info-text">Make a fist with the thumb resting alongside the index finger.</p>
+            </div>
+            <div class="info-group">
+              <h4 class="info-heading">Step-by-Step Instructions</h4>
+              <ol id="lightboxSteps" class="steps-list">
+                <li>Make a loose fist with your dominant hand.</li>
+                <li>Rest your thumb alongside the index finger.</li>
+                <li>Hold hand steadily in view of the camera.</li>
+              </ol>
+            </div>
+            <div class="info-group">
+              <h4 class="info-heading">Pro Practice Tip</h4>
+              <p id="lightboxTip" class="info-tip">Keep fingers curled firmly inward so MediaPipe captures the outer knuckles cleanly.</p>
+            </div>
+            <div class="lightbox-action-row">
+              <button id="btnPracticeThisSign" class="control-btn primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Practice This Sign in Camera</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Alphabet Reference Chart Modal -->
+    <div id="chartModal" class="modal-backdrop">
+      <div class="modal-dialog chart-dialog">
+        <div class="modal-header">
+          <h3 id="chartModalTitle" class="modal-title">Manual Alphabet Reference Chart</h3>
+          <div class="chart-tab-switcher">
+            <button id="btnSwitchChartAsl" class="chart-tab-btn active" type="button">ASL (American 🇺🇸)</button>
+            <button id="btnSwitchChartIsl" class="chart-tab-btn" type="button">ISL (Vector 🇮🇳)</button>
+            <button id="btnSwitchChartIslGov" class="chart-tab-btn" type="button">ISL (Govt Photo 📷)</button>
+          </div>
+          <button id="btnCloseChartModal" class="icon-btn close-modal" aria-label="Close Chart">&times;</button>
+        </div>
+        <div class="modal-body chart-modal-body">
+          <div class="chart-scroll-wrap">
+            <img id="fullChartImg" src="https://commons.wikimedia.org/wiki/Special:FilePath/Asl_alphabet_gallaudet.svg" alt="Complete Manual Alphabet Poster" class="full-chart-img" loading="lazy">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Settings &amp; Calibration</span>
+          </div>
+          <button id="btnCloseSettings" class="icon-btn close-modal" aria-label="Close Settings">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-item">
+            <div class="setting-meta">
+              <span class="setting-name">Hold Sensitivity (Frames)</span>
+              <span class="setting-desc">Number of consecutive frames required to lock in a letter.</span>
+            </div>
+            <div class="setting-input-row">
+              <input type="range" id="settingHoldFrames" min="3" max="16" step="1" value="8">
+              <span id="valHoldFrames" class="setting-val">8 frames (~0.8s)</span>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-meta">
+              <span class="setting-name">Confidence Threshold</span>
+              <span class="setting-desc">Minimum model certainty required before confirming a sign.</span>
+            </div>
+            <div class="setting-input-row">
+              <input type="range" id="settingMinConf" min="50" max="95" step="5" value="75">
+              <span id="valMinConf" class="setting-val">75%</span>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-meta">
+              <span class="setting-name">Prediction Speed (Interval)</span>
+              <span class="setting-desc">Delay between inference requests to balance responsiveness &amp; CPU.</span>
+            </div>
+            <div class="setting-input-row">
+              <input type="range" id="settingInterval" min="60" max="250" step="10" value="100">
+              <span id="valInterval" class="setting-val">100 ms</span>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-meta">
+              <span class="setting-name">Visual Skeleton Style</span>
+              <span class="setting-desc">Style of the real-time hand landmark overlay.</span>
+            </div>
+            <select id="settingSkeletonStyle" class="custom-select full">
+              <option value="cyber">Cyber Neon (Cyan &amp; White)</option>
+              <option value="emerald">Emerald Matrix (Green &amp; Lime)</option>
+              <option value="minimal">Minimal Dots Only</option>
+              <option value="hidden">Hidden (No Skeleton)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btnResetSettings" class="control-btn ghost">Reset to Defaults</button>
+          <button id="btnSaveSettings" class="control-btn primary">Save &amp; Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Element -->
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script type="module" src="{% static 'recognizer/app.js' %}?v=2.1"></script>
+</body>
+</html>
