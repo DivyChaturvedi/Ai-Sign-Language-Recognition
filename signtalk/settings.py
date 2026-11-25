@@ -30,7 +30,17 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
 
 _env_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', '')
-ALLOWED_HOSTS = [h.strip() for h in _env_hosts.split(',') if h.strip()] if _env_hosts else ['localhost', '127.0.0.1', '[::1]', '*']
+ALLOWED_HOSTS = [
+    h.strip().replace('https://', '').replace('http://', '').rstrip('/')
+    for h in _env_hosts.split(',')
+    if h.strip()
+] if _env_hosts else ['localhost', '127.0.0.1', '[::1]', '*']
+
+_render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME', '').strip()
+if _render_host and _render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_host)
+if os.environ.get('RENDER') and '.onrender.com' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('.onrender.com')
 CSRF_TRUSTED_ORIGINS = [
     f"https://{h.lstrip('.')}" if not h.startswith('.') else f"https://*{h}"
     for h in ALLOWED_HOSTS
