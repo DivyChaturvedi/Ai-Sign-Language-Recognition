@@ -476,7 +476,7 @@
         </div>
         <div class="modal-body chart-modal-body">
           <div class="chart-scroll-wrap">
-            <img id="fullChartImg" src="https://commons.wikimedia.org/wiki/Special:FilePath/Asl_alphabet_gallaudet.svg" alt="Complete Manual Alphabet Poster" class="full-chart-img" loading="lazy">
+            <img id="fullChartImg" src="{% static 'recognizer/img/signs/asl_chart.jpg' %}" alt="Complete Manual Alphabet Poster" class="full-chart-img" loading="lazy">
           </div>
         </div>
       </div>
@@ -550,6 +550,6 @@
     <div id="toast" class="toast"></div>
   </div>
 
-  <script type="module" src="{% static 'recognizer/app.js' %}?v=2.1"></script>
+  <script type="module" src="{% static 'recognizer/app.js' %}?v=2.2"></script>
 </body>
 </html>

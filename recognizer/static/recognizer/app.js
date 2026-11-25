@@ -1468,11 +1468,11 @@ if (btnPracticeThisSign) {
 const CHARTS = {
   asl: {
     title: "American Sign Language (ASL) Manual Alphabet Poster",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/American_Sign_Language_letters.svg/1024px-American_Sign_Language_letters.svg.png",
+    img: "/static/recognizer/img/signs/asl_chart.jpg",
   },
   isl: {
-    title: "Indian Sign Language (ISL) Vector Alphabet Chart (A–Z)",
-    img: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/07/BSL_alphabet.svg/1024px-BSL_alphabet.svg.png",
+    title: "Indian Sign Language (ISL) Alphabet Chart (A–Z)",
+    img: "/static/recognizer/img/signs/isl_chart.jpg",
   },
   islGov: {
     title: "Official Indian Sign Language (Govt Vikaspedia) Photo Chart",
@@ -1484,6 +1484,9 @@ function showChartModal(type = "asl") {
   const chart = CHARTS[type] || CHARTS.asl;
   if (chartModalTitle) chartModalTitle.textContent = chart.title;
   if (fullChartImg) fullChartImg.src = chart.img;
+  if (btnSwitchChartAsl) btnSwitchChartAsl.classList.toggle("active", type === "asl");
+  if (btnSwitchChartIsl) btnSwitchChartIsl.classList.toggle("active", type === "isl");
+  if (btnSwitchChartIslGov) btnSwitchChartIslGov.classList.toggle("active", type === "islGov");
   if (chartModal) chartModal.classList.add("open");
 }
 
