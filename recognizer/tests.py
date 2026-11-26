@@ -362,3 +362,36 @@ class ExtendedStudioFeaturesTests(TestCase):
         # Reset stats
         self.assertEqual(self.client.delete("/api/progress/").status_code, 200)
         self.assertEqual(self.client.get("/api/progress/").json()["total"], 0)
+
+    def test_action_ml_training_and_hybrid_prediction(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            tmp_csv = tmp / "actions.csv"
+            tmp_model = tmp / "actions.joblib"
+            h_water = [_synthetic_open_palm(spread=True, wrist_y=0.7)]
+            h_bye = [_synthetic_beak_pinch()]
+            with patch.dict("recognizer.custom_trainer.STATIC_CONFIG", {"actions": (tmp_csv, tmp_model, 130, False)}), \
+                 patch("recognizer.action_predictor.ACTIONS_MODEL_PATH", tmp_model):
+                from recognizer.action_predictor import invalidate_action_cache
+                from recognizer.custom_trainer import add_custom_samples_and_train, delete_custom_label
+                invalidate_action_cache()
+
+                out1 = add_custom_samples_and_train("actions", "Water", [h_water, h_water, h_water])
+                self.assertEqual(out1["added"], 3)
+                out2 = add_custom_samples_and_train("actions", "Bye", [h_bye, h_bye, h_bye])
+                self.assertEqual(sorted(out2["classes"]), ["Bye", "Water"])
+
+                res_ml = predict_action(h_water)
+                self.assertIsNotNone(res_ml)
+                self.assertEqual(res_ml["action"], "Water")
+                self.assertEqual(res_ml["source"], "ml_model")
+
+                r_list = self.client.get("/api/actions/").json()
+                self.assertTrue(r_list["ml_trained"])
+                self.assertTrue(any(a["action"] == "Water" for a in r_list["actions"]))
+
+                del_res = delete_custom_label("actions", "Water")
+                self.assertEqual(del_res["deleted"], 3)
+                invalidate_action_cache()
+        finally:
+            shutil.rmtree(tmp)

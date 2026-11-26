@@ -95,11 +95,14 @@
   let availableVoices = [];
 
   // Gesture Tracker
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || "";
   let actionHoldCandidate = null;
   let actionHoldCount = 0;
   let lastSpokenAction = null;
   let lastSpokenTimestamp = 0;
   let allActions = [];
+  let mlActionsEnabled = false;
+  let actionInFlight = false;
 
   // ==========================================================================
   // Web Speech API Voice Engine
@@ -327,9 +330,7 @@
   // ==========================================================================
   // Action Recognition Lifecycle & UI Sync
   // ==========================================================================
-  function handleActionRecognition(rawHands) {
-    let detected = detectActionFromLandmarks(rawHands);
-
+  function applyDetectedAction(detected) {
     if (detected) {
       if (actionHoldCandidate === detected.action) {
         actionHoldCount++;
@@ -345,6 +346,33 @@
       actionHoldCount = Math.max(0, actionHoldCount - 1);
       if (actionHoldCount === 0) actionHoldCandidate = null;
     }
+  }
+
+  async function handleActionRecognition(rawHands) {
+    if (mlActionsEnabled && !actionInFlight) {
+      actionInFlight = true;
+      try {
+        const res = await fetch("/api/predict_action/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+          body: JSON.stringify({
+            hands: rawHands.slice(0, 2).map((h) => h.map((p) => [p.x, p.y, p.z || 0])),
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          applyDetectedAction(data.detected ? data : null);
+          return;
+        }
+      } catch (e) {
+        console.warn("ML action prediction fallback:", e);
+      } finally {
+        actionInFlight = false;
+      }
+    }
+
+    const detected = detectActionFromLandmarks(rawHands);
+    applyDetectedAction(detected);
   }
 
   function triggerActionExecution(detected) {
@@ -433,6 +461,7 @@
       const resp = await fetch("/api/actions/");
       if (!resp.ok) throw new Error("Actions API unavailable");
       const data = await resp.json();
+      mlActionsEnabled = Boolean(data.ml_trained);
       allActions = (data.actions && data.actions.length > 0) ? data.actions : getDefaultActions();
       renderActionGrid(allActions);
     } catch (e) {

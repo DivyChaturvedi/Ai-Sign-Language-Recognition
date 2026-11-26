@@ -7,10 +7,10 @@ Real-time **ASL & ISL Alphabet Recognition** and **Action-to-Speech** web applic
 ## ✨ Features
 
 - **🔤 Alphabet Studio (`/`):** Real-time **ASL (1-hand)** & **ISL (2-hand)** recognition with Temporal EMA smoothing, live sentence builder, TTS speech, and ASL/ISL sign charts.
-- **🗣️ Action & Voice Studio (`/actions/`):** Detects 13 everyday gestures (Hello, Namaste, Thank You, Help, Yes, No, Peace, Stop, etc.) and speaks them aloud automatically.
+- **🗣️ Action & Voice Studio (`/actions/`):** Hybrid engine — 13 built-in geometric gestures + optional custom ML-trained actions (`actions_model.joblib`) that speak automatically.
 - **🔄 Two-Way Sign Communication:** Speak via microphone or type text to animate sequential gesture & SVG sign cards for reverse communication.
 - **🎞️ Dynamic Motion Recognition:** Resampled 16-frame trajectory classifier + geometric detector for motion signs (**J**, **Z**, and custom words).
-- **🎓 Browser Custom Sign Trainer:** Record static or dynamic sign samples directly in the web UI (no terminal required) and retrain the model live.
+- **🎓 Browser Custom Sign Trainer:** Record ASL, ISL, Action (1/2 hands), or dynamic motion samples directly in the web UI (no terminal required) and retrain live.
 - **✨ Grammar Polish & Hindi Translation:** Converts sign glosses (e.g. `"I STORE GO"` → `"I am going to the store."`) and translates/speaks in Hindi.
 - **🎬 Video Upload Subtitles:** Scan uploaded `.mp4`/`.webm` sign videos to generate clickable timestamped transcripts and export `.SRT` / `.TXT` files.
 - **📊 Student Progress Dashboard:** Persists Practice Arena scores in SQLite, tracking overall accuracy and weak letters (`<75%`).
@@ -102,6 +102,21 @@ python ml/import_image_dataset.py --language isl --dataset-dir "C:\path\to\India
 # Train the corresponding model:
 python ml/train_model.py --language asl
 python ml/train_model.py --language isl
+```
+
+### Train Custom Action & Voice Gestures (1 or 2 Hands)
+```powershell
+# 1. Record samples for built-in or new actions (SPACE = start, Q = next/quit):
+python ml/collect_data_actions.py --labels "Thank You" "Stop / Wait" "Water" "Bye" --samples 200 --person divy
+
+# Or record all 13 default actions:
+python ml/collect_data_actions.py --samples 200 --person divy
+
+# 2. Train Action ML model (ml/models/actions_model.joblib):
+python ml/train_model.py --language actions
+
+# 3. Restart server (custom actions auto-appear in /actions/ library):
+python manage.py runserver
 ```
 
 ---

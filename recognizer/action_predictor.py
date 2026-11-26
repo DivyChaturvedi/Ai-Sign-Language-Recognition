@@ -1,10 +1,73 @@
 """
 Action & Phrase Recognition Engine for Sign Language.
-Classifies multi-finger and multi-hand gestures into meaningful spoken phrases and actions:
-Hello, Thank You, I Love You, Yes, No, Help, Namaste, Good, Bad, Stop, Call Me, Please, My Name Is.
+Hybrid engine: uses trained ML model (`ml/models/actions_model.joblib`) when confident,
+with automatic fallback to 3D geometric rules for all 13 built-in gestures.
 """
 
 import math
+import threading
+
+import joblib
+import numpy as np
+from django.conf import settings
+
+from ml.utils import normalize_hands
+
+ACTIONS_MODEL_PATH = settings.BASE_DIR / "ml" / "models" / "actions_model.joblib"
+_action_lock = threading.Lock()
+_cached_action_model = None
+
+ACTION_METADATA = {
+    "Hello / Hi": {"phrase": "Hello! How are you?", "emoji": "👋", "category": "Greeting", "description": "Open palm waving with spread fingers."},
+    "Thank You": {"phrase": "Thank you so much!", "emoji": "🙏", "category": "Courtesy", "description": "Flat hand starting near mouth and extending outward."},
+    "I Love You": {"phrase": "I love you!", "emoji": "🤟", "category": "Affection", "description": "Thumb, index, and pinky extended (universal ILY sign)."},
+    "Namaste / Welcome": {"phrase": "Namaste! Welcome!", "emoji": "🪷", "category": "Greeting", "description": "Both palms pressed together in front of chest."},
+    "Help": {"phrase": "Please help me!", "emoji": "🆘", "category": "Emergency", "description": "Thumbs-up resting on flat open palm."},
+    "Help / Emergency": {"phrase": "Please help me!", "emoji": "🆘", "category": "Emergency", "description": "Thumbs-up resting on flat open palm."},
+    "Yes / Affirmative": {"phrase": "Yes, I agree!", "emoji": "✊", "category": "Response", "description": "Fist gesture representing agreement/nod."},
+    "No": {"phrase": "No, thank you.", "emoji": "🙅", "category": "Response", "description": "Index and middle fingers tapping against thumb."},
+    "Good / Nice": {"phrase": "Very good, nice job!", "emoji": "👍", "category": "Feedback", "description": "Thumbs-up pointing straight upward."},
+    "Good / Great": {"phrase": "Very good, nice job!", "emoji": "👍", "category": "Feedback", "description": "Thumbs-up pointing straight upward."},
+    "Bad / Dislike": {"phrase": "No, that's not good.", "emoji": "👎", "category": "Feedback", "description": "Thumbs-down pointing downward."},
+    "Peace / Victory": {"phrase": "Peace and victory!", "emoji": "✌️", "category": "Social", "description": "Index and middle fingers spread in a clean V."},
+    "Stop / Wait": {"phrase": "Stop, please wait.", "emoji": "✋", "category": "Command", "description": "Open flat palm facing camera with closed fingers."},
+    "Call Me": {"phrase": "Call me later.", "emoji": "🤙", "category": "Social", "description": "Thumb and pinky extended (Shaka / Phone sign)."},
+    "Please": {"phrase": "Please, could you help?", "emoji": "🤲", "category": "Courtesy", "description": "Both palms open and cupped together."},
+}
+
+
+def invalidate_action_cache():
+    global _cached_action_model
+    with _action_lock:
+        _cached_action_model = None
+
+
+def get_action_model():
+    global _cached_action_model
+    with _action_lock:
+        if _cached_action_model is None and ACTIONS_MODEL_PATH.exists():
+            m = joblib.load(ACTIONS_MODEL_PATH)
+            if hasattr(m, "n_jobs"):
+                m.n_jobs = 1
+            _cached_action_model = m
+        return _cached_action_model
+
+
+def get_action_classes():
+    m = get_action_model()
+    return [str(c) for c in m.classes_] if m is not None else []
+
+
+def metadata_for_action(label: str) -> dict:
+    info = ACTION_METADATA.get(label)
+    if info:
+        return dict(info)
+    return {
+        "phrase": f"{label}!",
+        "emoji": "🤖",
+        "category": "Custom ML",
+        "description": f"Custom ML-trained action gesture for '{label}'.",
+    }
 
 def dist3d(p1, p2):
     return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2 + (p1[2] - p2[2])**2)
@@ -74,20 +137,48 @@ def analyze_hand(hand):
 def predict_action(hands):
     """
     hands: list of 1 or 2 hands. Each hand is 21 [x, y, z] points.
-    Returns dict:
-      {
-         "action": str,
-         "phrase": str,
-         "emoji": str,
-         "confidence": float,
-         "category": str,
-         "description": str
-      }
+    Uses trained ML model (`actions_model.joblib`) when confident, otherwise falls back to 3D geometric rules.
     """
     if not hands or len(hands) == 0:
         return None
     if any(len(h) != 21 or any(len(p) != 3 for p in h) for h in hands[:2]):
         raise ValueError("Each hand must contain 21 [x, y, z] landmarks")
+
+    model = get_action_model()
+    if model is not None and len(model.classes_) >= 1:
+        feats = normalize_hands(hands)
+        if np.all(np.isfinite(feats)):
+            if len(model.classes_) >= 2:
+                probs = model.predict_proba(feats.reshape(1, -1))[0]
+                top_idx = int(np.argmax(probs))
+                top_conf = float(probs[top_idx])
+                if top_conf >= 0.72:
+                    lbl = str(model.classes_[top_idx])
+                    meta = metadata_for_action(lbl)
+                    return {
+                        "action": lbl,
+                        "confidence": round(top_conf, 3),
+                        "source": "ml_model",
+                        **meta,
+                    }
+            else:
+                lbl = str(model.classes_[0])
+                meta = metadata_for_action(lbl)
+                return {
+                    "action": lbl,
+                    "confidence": 0.85,
+                    "source": "ml_model",
+                    **meta,
+                }
+
+    geo = _predict_action_geometric(hands)
+    if geo is not None:
+        geo.setdefault("source", "geometric")
+    return geo
+
+
+def _predict_action_geometric(hands):
+    """Rule-based 3D geometric gesture detector for the 13 built-in everyday actions."""
 
     h1 = analyze_hand(hands[0])
     h2 = analyze_hand(hands[1]) if len(hands) > 1 else None

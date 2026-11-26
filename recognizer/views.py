@@ -10,7 +10,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST, require_GET, require_http_methods
 from .predictor import predict, get_model_classes
-from .action_predictor import predict_action
+from .action_predictor import predict_action, get_action_classes, metadata_for_action
 from .models import PracticeAttempt
 from .grammar_translator import polish_gloss_to_english, translate_text
 from .motion_engine import predict_motion, get_motion_classes
@@ -131,7 +131,24 @@ def api_actions_list(request):
         {"action": "Call Me", "phrase": "Call me later.", "emoji": "🤙", "category": "Social", "gesture": "Thumb and pinky extended to ear (Shaka sign)"},
         {"action": "Please", "phrase": "Please, could you help?", "emoji": "🤲", "category": "Courtesy", "gesture": "Both palms open and cupped together"},
     ]
-    return JsonResponse({"actions": actions})
+    ml_classes = get_action_classes()
+    known = {a["action"] for a in actions}
+    for cls in ml_classes:
+        if cls not in known:
+            meta = metadata_for_action(cls)
+            actions.append({
+                "action": cls,
+                "phrase": meta["phrase"],
+                "emoji": meta["emoji"],
+                "category": meta["category"],
+                "gesture": meta["description"],
+                "ml_custom": True,
+            })
+    return JsonResponse({
+        "actions": actions,
+        "ml_trained": bool(ml_classes),
+        "ml_classes": ml_classes,
+    })
 
 @require_GET
 def api_info(request):
@@ -487,6 +504,10 @@ def api_trainer(request):
                 if len(hands) != 2:
                     raise ValueError("ISL samples require 2 hands per frame")
                 validated.append(hands)
+        elif mode == "actions":
+            for sample in raw_samples:
+                wrapped = sample if (isinstance(sample, list) and len(sample) in (1, 2) and isinstance(sample[0], list) and len(sample[0]) == 21) else [sample]
+                validated.append(_parse_hands(wrapped, allow_empty=False))
         elif mode == "asl":
             for sample in raw_samples:
                 wrapped = sample if (isinstance(sample, list) and len(sample) in (1, 2) and isinstance(sample[0], list) and len(sample[0]) == 21) else [sample]

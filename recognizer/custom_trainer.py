@@ -11,6 +11,7 @@ from sklearn.ensemble import RandomForestClassifier
 
 from ml.utils import normalize_landmarks, normalize_hands
 from . import predictor
+from .action_predictor import ACTIONS_MODEL_PATH, get_action_classes, invalidate_action_cache
 from .motion_engine import (
     MOTION_CSV_PATH,
     N_MOTION_FEATURES,
@@ -18,11 +19,13 @@ from .motion_engine import (
     train_motion_model,
 )
 
-VALID_LABEL_RE = re.compile(r"^[A-Za-z0-9 _-]{1,24}$")
+VALID_LABEL_RE = re.compile(r"^[A-Za-z0-9 _/-]{1,32}$")
+ACTIONS_CSV_PATH = settings.BASE_DIR / "ml" / "data" / "actions_dataset.csv"
 
 STATIC_CONFIG = {
     "asl": (settings.BASE_DIR / "ml" / "data" / "dataset.csv", settings.MODEL_PATHS["asl"], 63, True),
     "isl": (settings.BASE_DIR / "ml" / "data" / "isl_dataset.csv", settings.MODEL_PATHS["isl"], 130, False),
+    "actions": (ACTIONS_CSV_PATH, ACTIONS_MODEL_PATH, 130, False),
 }
 
 
@@ -69,7 +72,10 @@ def _retrain_static_model(mode: str):
 
     model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, model_path, compress=3)
-    predictor._models.pop(mode, None)
+    if mode == "actions":
+        invalidate_action_cache()
+    else:
+        predictor._models.pop(mode, None)
     return {"classes": [str(c) for c in model.classes_], "samples": len(rows)}
 
 
@@ -87,6 +93,10 @@ def add_custom_samples_and_train(mode: str, raw_label: str, samples: list, perso
                 # Accept either [21 pts] or [[21 pts]]
                 hand = sample[0] if (isinstance(sample, list) and len(sample) in (1, 2) and isinstance(sample[0], list) and len(sample[0]) == 21) else sample
                 feats = normalize_landmarks(hand)
+            elif mode == "actions":
+                # Accept 1 or 2 hands per frame
+                hands = sample if (isinstance(sample, list) and len(sample) in (1, 2) and isinstance(sample[0], list) and len(sample[0]) == 21) else [sample]
+                feats = normalize_hands(hands)
             else:
                 if not isinstance(sample, list) or len(sample) != 2:
                     raise ValueError("ISL samples require 2 hands per frame")
@@ -161,7 +171,10 @@ def delete_custom_label(mode: str, raw_label: str):
             model_path = STATIC_CONFIG[mode][1]
             if model_path.exists():
                 model_path.unlink()
-            predictor._models.pop(mode, None)
+            if mode == "actions":
+                invalidate_action_cache()
+            else:
+                predictor._models.pop(mode, None)
         return {"mode": mode, "deleted": deleted, "classes": [], "samples": 0}
     summary = train_motion_model() if mode == "motion" else _retrain_static_model(mode)
     return {"mode": mode, "deleted": deleted, **summary}
@@ -175,7 +188,8 @@ def get_trainer_status():
         counts = {}
         for r in rows:
             counts[r[0]] = counts.get(r[0], 0) + 1
-        out[mode] = {"counts": dict(sorted(counts.items())), "classes": predictor.get_model_classes(mode)}
+        classes = get_action_classes() if mode == "actions" else predictor.get_model_classes(mode)
+        out[mode] = {"counts": dict(sorted(counts.items())), "classes": classes}
 
     _, m_rows = _read_csv_rows(MOTION_CSV_PATH)
     m_counts = {}

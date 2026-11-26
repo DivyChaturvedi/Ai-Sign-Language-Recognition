@@ -17,12 +17,13 @@ from sklearn.svm import SVC
 ML_DIR = Path(__file__).resolve().parent
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--language", choices=["asl", "isl"], default="asl")
+parser.add_argument("--language", choices=["asl", "isl", "actions"], default="asl")
 args = parser.parse_args()
 
 CONFIG = {
     "asl": (ML_DIR / "data/dataset.csv", ML_DIR / "models/sign_model.joblib", 63, ML_DIR / "models/confusion_matrix.png"),
     "isl": (ML_DIR / "data/isl_dataset.csv", ML_DIR / "models/isl_model.joblib", 130, ML_DIR / "models/isl_confusion_matrix.png"),
+    "actions": (ML_DIR / "data/actions_dataset.csv", ML_DIR / "models/actions_model.joblib", 130, ML_DIR / "models/actions_confusion_matrix.png"),
 }
 csv_path, model_path, n_feat, cm_path = CONFIG[args.language]
 MIRROR = args.language == "asl"      # left-hand support only for one-handed ASL

@@ -509,7 +509,7 @@ if (btnTrainerCapture) {
           if (trainerStatusText) trainerStatusText.textContent = `Show hand in camera (${capturedSamples.length}/${TARGET_SAMPLES})`;
           return;
         }
-        const sample = mode === "isl"
+        const sample = (mode === "isl" || mode === "actions")
           ? lm.slice(0, 2).map((h) => h.map((p) => [p.x, p.y, p.z]))
           : lm[0].map((p) => [p.x, p.y, p.z]);
         capturedSamples.push(sample);
