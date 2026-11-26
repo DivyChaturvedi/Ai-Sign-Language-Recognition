@@ -303,19 +303,21 @@
       return { action: "Yes / Affirmative", phrase: "Yes, I agree!", emoji: "✊", category: "Response" };
     }
 
-    // Open palm gestures: Hello (spread fingers) vs Thank You (flat palm raised near chin/upper area) vs Stop (upright closed palm)
+    // Open palm gestures: Hello (spread fingers) vs Thank You (near face OR tilted forward from chin) vs Stop (upright closed palm)
     if (h1.numExtended >= 4) {
       const isSpread = h1.spreadIdxMid > 0.40 || h1.spreadMidRng > 0.38;
       if (isSpread) {
         return { action: "Hello / Hi", phrase: "Hello! How are you?", emoji: "👋", category: "Greeting" };
       }
-      if (h1.mid_tip.y < 0.42) {
+      const verticalLift = (h1.wrist.y - h1.mid_tip.y) / h1.palmScale;
+      const isTiltedForward = verticalLift < 1.20;
+      if (h1.wrist.y < 0.46 || isTiltedForward) {
         return { action: "Thank You", phrase: "Thank you so much!", emoji: "🙏", category: "Courtesy" };
       }
       return { action: "Stop / Wait", phrase: "Stop, please wait.", emoji: "✋", category: "Command" };
     }
 
-    if (h1.numExtended >= 3 && h1.mid_tip.y < 0.40) {
+    if (h1.numExtended >= 3 && (h1.wrist.y < 0.46 || (h1.wrist.y - h1.mid_tip.y) / h1.palmScale < 1.15)) {
       return { action: "Thank You", phrase: "Thank you so much!", emoji: "🙏", category: "Courtesy" };
     }
 

@@ -159,13 +159,13 @@ class PredictAPITest(TestCase):
         self.assertIsNotNone(res_no)
         self.assertEqual(res_no["action"], "No")
 
-        # Closed palm lower-mid frame -> Stop / Wait (mid_tip.y = 1.08 - 0.60 = 0.48 >= 0.42)
-        res_stop = predict_action([_synthetic_open_palm(spread=False, wrist_y=1.08)])
+        # Upright closed palm in chest/mid zone -> Stop / Wait
+        res_stop = predict_action([_synthetic_open_palm(spread=False, wrist_y=0.80)])
         self.assertIsNotNone(res_stop)
         self.assertEqual(res_stop["action"], "Stop / Wait")
 
-        # Closed palm raised near upper chin zone -> Thank You (mid_tip.y = 0.80 - 0.60 = 0.20 < 0.42)
-        res_ty = predict_action([_synthetic_open_palm(spread=False, wrist_y=0.80)])
+        # Closed palm raised near face/chin zone -> Thank You
+        res_ty = predict_action([_synthetic_open_palm(spread=False, wrist_y=0.40)])
         self.assertIsNotNone(res_ty)
         self.assertEqual(res_ty["action"], "Thank You")
 

@@ -217,7 +217,7 @@ def predict_action(hands):
             "description": "Fist gesture representing agreement/nod."
         }
 
-    # Open palm gestures: Hello (spread) vs Thank You (near upper chin) vs Stop (closed upright)
+    # Open palm gestures: Hello (spread) vs Thank You (raised near chin or tilted forward) vs Stop (upright closed palm)
     if h["num_extended"] >= 4:
         is_spread = h["spread_idx_mid"] > 0.40 or h["spread_mid_rng"] > 0.38
         if is_spread:
@@ -229,7 +229,8 @@ def predict_action(hands):
                 "category": "Greeting",
                 "description": "Open palm waving with spread fingers."
             }
-        if h["mid_tip"][1] < 0.42:
+        vertical_lift = (h["wrist"][1] - h["mid_tip"][1]) / h["hand_size"]
+        if h["wrist"][1] < 0.46 or vertical_lift < 1.20:
             return {
                 "action": "Thank You",
                 "phrase": "Thank you so much!",
@@ -248,7 +249,7 @@ def predict_action(hands):
         }
 
     # Thank you: Open hand moving forward from chin/face
-    if h["num_extended"] >= 3 and h["mid_tip"][1] < 0.40:
+    if h["num_extended"] >= 3 and (h["wrist"][1] < 0.46 or (h["wrist"][1] - h["mid_tip"][1]) / h["hand_size"] < 1.15):
         return {
             "action": "Thank You",
             "phrase": "Thank you so much!",
