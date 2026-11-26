@@ -968,6 +968,7 @@ let lastPredictAt = 0;
 let inFlight = false;
 let frameCount = 0;
 let lastFpsTime = performance.now();
+let latestLandmarks = [];
 
 async function sendForPrediction(hands) {
   inFlight = true;
@@ -1059,26 +1060,39 @@ function loop() {
       if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (result && result.landmarks && result.landmarks.length > 0) {
+        latestLandmarks = result.landmarks;
         const numHands = result.landmarks.length;
         if (handsText) handsText.textContent = `${numHands} Hand${numHands > 1 ? "s" : ""}`;
         drawSkeleton(result.landmarks);
 
-        const lang = languageSelect ? languageSelect.value : "asl";
-        if (lang === "isl" && numHands < 2) {
-          resetHold();
-          resetSmoother();
-          locked = null;
-          if (letterEl) letterEl.textContent = "–";
-          if (confidenceTag) confidenceTag.textContent = "0%";
-          syncStatus("ISL needs 2 hands (1 detected)");
+        if (window.SignTalkBridge?.onFrameLandmarks) {
+          window.SignTalkBridge.onFrameLandmarks(result.landmarks, now);
+        }
+
+        if (window.SignTalkBridge?.isMotionMode && window.SignTalkBridge.isMotionMode()) {
+          syncStatus("Motion Mode: Trace J, Z or words");
         } else {
-          const hands = lang === "isl" ? result.landmarks : [result.landmarks[0]];
-          if (!inFlight && now - lastPredictAt >= CONFIG.predictIntervalMs) {
-            lastPredictAt = now;
-            sendForPrediction(hands);
+          const lang = languageSelect ? languageSelect.value : "asl";
+          if (lang === "isl" && numHands < 2) {
+            resetHold();
+            resetSmoother();
+            locked = null;
+            if (letterEl) letterEl.textContent = "–";
+            if (confidenceTag) confidenceTag.textContent = "0%";
+            syncStatus("ISL needs 2 hands (1 detected)");
+          } else {
+            const hands = lang === "isl" ? result.landmarks : [result.landmarks[0]];
+            if (!inFlight && now - lastPredictAt >= CONFIG.predictIntervalMs) {
+              lastPredictAt = now;
+              sendForPrediction(hands);
+            }
           }
         }
       } else {
+        latestLandmarks = [];
+        if (window.SignTalkBridge?.onFrameLandmarks) {
+          window.SignTalkBridge.onFrameLandmarks([], now);
+        }
         handLost();
       }
     }
@@ -1198,6 +1212,7 @@ function handleQuizEvaluation(label, confidence) {
       quizAttempts++;
       updateQuizScoreboard();
       playSuccessFanfare();
+      window.SignTalkBridge?.logProgressAttempt(currentTargetLetter, label, true, confidence);
 
       if (challengeFeedback) {
         challengeFeedback.textContent = `🎉 Great Job! +${10 + (quizStreak - 1) * 2} Points!`;
@@ -1225,6 +1240,7 @@ function updateQuizScoreboard() {
 
 if (btnSkipChallenge) {
   btnSkipChallenge.addEventListener("click", () => {
+    window.SignTalkBridge?.logProgressAttempt(currentTargetLetter, "SKIPPED", false, 0);
     quizStreak = 0;
     quizAttempts++;
     updateQuizScoreboard();
@@ -1981,6 +1997,61 @@ async function init() {
 
   await Promise.allSettled([camTask, modelTask]);
 }
+
+// Bridge for modular studio_features.js extensions
+window.SignTalkBridge = {
+  csrfToken,
+  showToast,
+  getLatestLandmarks: () => latestLandmarks,
+  setTextValue: (val) => {
+    text = String(val ?? "");
+    renderText();
+  },
+  appendRecognizedToken: (tok) => {
+    addLetter(String(tok ?? ""));
+    triggerLockEffect();
+  },
+  displayMotionPrediction: (lbl, conf, cands = []) => {
+    if (letterEl) letterEl.textContent = lbl;
+    if (confidenceTag) confidenceTag.textContent = `${Math.round(conf * 100)}%`;
+    renderCandidates(cands);
+    updateHoldGauge(conf >= 0.7 ? 1 : conf);
+  },
+  refreshModelsAndGallery: async () => {
+    await loadModelInfo();
+    await loadDictionary();
+  },
+  getLandmarkerDeps: () => ({
+    HandLandmarker,
+    FilesetResolver,
+    WASM_URL,
+    MODEL_URL,
+  }),
+  logProgressAttempt: async (targetLetter, predictedLetter, isCorrect, confidence = 0) => {
+    try {
+      const lang = languageSelect ? languageSelect.value : "asl";
+      await fetch("/api/progress/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken },
+        body: JSON.stringify({
+          language: lang,
+          target_letter: targetLetter,
+          predicted_letter: predictedLetter,
+          is_correct: isCorrect,
+          confidence,
+        }),
+      });
+      if (window.SignTalkBridge?.onProgressSaved) {
+        window.SignTalkBridge.onProgressSaved();
+      }
+    } catch (e) {
+      console.warn("Could not save progress attempt:", e);
+    }
+  },
+  isMotionMode: () => false,
+  onFrameLandmarks: null,
+  onProgressSaved: null,
+};
 
 // Run immediately or on DOM ready
 if (document.readyState === "loading") {

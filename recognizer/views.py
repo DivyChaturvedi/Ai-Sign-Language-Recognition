@@ -5,11 +5,16 @@ import re
 import threading
 import time
 from django.conf import settings
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.http import require_POST, require_GET, require_http_methods
 from .predictor import predict, get_model_classes
 from .action_predictor import predict_action
+from .models import PracticeAttempt
+from .grammar_translator import polish_gloss_to_english, translate_text
+from .motion_engine import predict_motion, get_motion_classes
+from .custom_trainer import add_custom_samples_and_train, delete_custom_label, get_trainer_status
 
 logger = logging.getLogger(__name__)
 
@@ -382,3 +387,202 @@ def api_remote_poll(request, session_id):
             "candidates": sess["candidates"],
         }
     return JsonResponse(payload)
+
+
+# ---- AI Grammar Polish + Hindi Translation ----
+@require_POST
+def api_polish_translate(request):
+    try:
+        data = json.loads(request.body)
+        if not isinstance(data, dict):
+            raise ValueError("JSON body must be an object")
+        raw_text = str(data.get("text", "")).strip()
+        if not raw_text:
+            return JsonResponse({"error": "Text is empty"}, status=400)
+        do_polish = bool(data.get("polish", True))
+        target_lang = str(data.get("target_lang", "hi")).strip().lower() or "hi"
+        if target_lang not in {"hi", "en", "es", "fr", "de"}:
+            target_lang = "hi"
+    except (json.JSONDecodeError, ValueError, TypeError) as exc:
+        return JsonResponse({"error": f"Invalid input: {exc}"}, status=400)
+
+    polished = polish_gloss_to_english(raw_text) if do_polish else raw_text
+    tr = translate_text(polished, target_lang=target_lang)
+    return JsonResponse({
+        "raw": raw_text,
+        "polished": polished,
+        "translated": tr["translated"],
+        "source": tr["source"],
+        "target_lang": target_lang,
+    })
+
+
+# ---- Dynamic Motion Sequence Prediction (J, Z & Custom Words) ----
+@require_POST
+def api_predict_motion(request):
+    try:
+        data = json.loads(request.body)
+        if not isinstance(data, dict):
+            raise ValueError("JSON body must be an object")
+        raw_seq = data.get("sequence")
+        if not isinstance(raw_seq, list) or len(raw_seq) < 8 or len(raw_seq) > 90:
+            raise ValueError("'sequence' must contain 8-90 hand frames")
+        parsed_seq = []
+        for frame in raw_seq:
+            parsed_frame = _parse_hands([frame], allow_empty=False)[0]
+            parsed_seq.append(parsed_frame)
+    except (json.JSONDecodeError, ValueError, TypeError) as exc:
+        return JsonResponse({"error": f"Invalid motion sequence: {exc}"}, status=400)
+
+    try:
+        res = predict_motion(parsed_seq)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    except Exception:
+        logger.exception("Motion prediction failure")
+        return JsonResponse({"error": "Motion prediction failure"}, status=500)
+
+    return JsonResponse({
+        "detected": bool(res.get("label")),
+        "motion_classes": get_motion_classes(),
+        **res,
+    })
+
+
+# ---- Browser Custom Sign Trainer (Static + Motion) ----
+@require_http_methods(["GET", "POST"])
+def api_trainer(request):
+    if request.method == "GET":
+        try:
+            return JsonResponse(get_trainer_status())
+        except Exception:
+            logger.exception("Failed to read trainer status")
+            return JsonResponse({"error": "Could not inspect datasets"}, status=500)
+
+    try:
+        data = json.loads(request.body)
+        if not isinstance(data, dict):
+            raise ValueError("JSON body must be an object")
+        action = data.get("action", "train")
+        mode = str(data.get("mode", "asl")).lower()
+        label = str(data.get("label", ""))
+
+        if action == "delete":
+            result = delete_custom_label(mode, label)
+            return JsonResponse({"ok": True, **result})
+
+        raw_samples = data.get("samples", [])
+        if not isinstance(raw_samples, list) or len(raw_samples) < 3 or len(raw_samples) > 300:
+            raise ValueError("Send 3-300 captured samples")
+
+        validated = []
+        if mode == "motion":
+            for seq in raw_samples:
+                if not isinstance(seq, list) or len(seq) < 8 or len(seq) > 90:
+                    raise ValueError("Each motion sample must have 8-90 frames")
+                validated.append([_parse_hands([frame], allow_empty=False)[0] for frame in seq])
+        elif mode == "isl":
+            for sample in raw_samples:
+                hands = _parse_hands(sample, allow_empty=False)
+                if len(hands) != 2:
+                    raise ValueError("ISL samples require 2 hands per frame")
+                validated.append(hands)
+        elif mode == "asl":
+            for sample in raw_samples:
+                wrapped = sample if (isinstance(sample, list) and len(sample) in (1, 2) and isinstance(sample[0], list) and len(sample[0]) == 21) else [sample]
+                hands = _parse_hands(wrapped, allow_empty=False)
+                validated.append(hands[0])
+        else:
+            raise ValueError("Unknown training mode")
+
+        person = str(data.get("person", "web_user"))[:32] or "web_user"
+        result = add_custom_samples_and_train(mode, label, validated, person=person)
+        return JsonResponse({"ok": True, **result})
+    except (json.JSONDecodeError, ValueError, TypeError) as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    except Exception:
+        logger.exception("Custom trainer failure")
+        return JsonResponse({"error": "Custom sign training failed"}, status=500)
+
+
+# ---- Student Practice Progress Dashboard (SQLite DB) ----
+@require_http_methods(["GET", "POST", "DELETE"])
+def api_progress(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            if not isinstance(data, dict):
+                raise ValueError("JSON body must be an object")
+            lang = str(data.get("language", "asl")).lower()
+            if lang not in ("asl", "isl"):
+                lang = "asl"
+            target = str(data.get("target_letter", "")).strip()[:24]
+            if not target:
+                raise ValueError("target_letter is required")
+            predicted = str(data.get("predicted_letter", "")).strip()[:24]
+            is_correct = bool(data.get("is_correct", False))
+            conf = float(data.get("confidence", 0.0))
+            if not math.isfinite(conf):
+                conf = 0.0
+            conf = max(0.0, min(1.0, conf))
+        except (json.JSONDecodeError, ValueError, TypeError) as exc:
+            return JsonResponse({"error": f"Invalid progress payload: {exc}"}, status=400)
+
+        PracticeAttempt.objects.create(
+            language=lang,
+            target_letter=target,
+            predicted_letter=predicted,
+            is_correct=is_correct,
+            confidence=conf,
+        )
+        return JsonResponse({"ok": True})
+
+    if request.method == "DELETE":
+        PracticeAttempt.objects.all().delete()
+        return JsonResponse({"ok": True})
+
+    total = PracticeAttempt.objects.count()
+    correct = PracticeAttempt.objects.filter(is_correct=True).count()
+    accuracy = round((correct / total) * 100, 1) if total > 0 else 100.0
+
+    per_letter_qs = (
+        PracticeAttempt.objects.values("target_letter")
+        .annotate(
+            attempts=Count("id"),
+            hits=Count("id", filter=Q(is_correct=True)),
+        )
+        .order_by("target_letter")
+    )
+    breakdown = []
+    weak_letters = []
+    for row in per_letter_qs:
+        acc = round((row["hits"] / row["attempts"]) * 100) if row["attempts"] > 0 else 0
+        entry = {
+            "letter": row["target_letter"],
+            "attempts": row["attempts"],
+            "correct": row["hits"],
+            "accuracy": acc,
+        }
+        breakdown.append(entry)
+        if acc < 75:
+            weak_letters.append(entry["letter"])
+
+    recent = [
+        {
+            "language": item.language,
+            "target": item.target_letter,
+            "is_correct": item.is_correct,
+            "confidence": round(item.confidence * 100),
+            "time": item.created_at.strftime("%H:%M"),
+        }
+        for item in PracticeAttempt.objects.all()[:8]
+    ]
+
+    return JsonResponse({
+        "total": total,
+        "correct": correct,
+        "accuracy": accuracy,
+        "weak_letters": weak_letters,
+        "breakdown": breakdown,
+        "recent": recent,
+    })

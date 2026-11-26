@@ -1,7 +1,9 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views
 
 urlpatterns = [
+    path("favicon.ico", RedirectView.as_view(url="/static/recognizer/img/favicon.svg", permanent=False)),
     path("", views.index, name="index"),
     path("actions/", views.actions_view, name="actions"),
     path("api/predict/", views.predict_view, name="predict"),
@@ -12,4 +14,8 @@ urlpatterns = [
     path("mobile/<str:session_id>/", views.mobile_camera_view, name="mobile_camera"),
     path("api/remote_push/<str:session_id>/", views.api_remote_push, name="api_remote_push"),
     path("api/remote_poll/<str:session_id>/", views.api_remote_poll, name="api_remote_poll"),
+    path("api/polish_translate/", views.api_polish_translate, name="api_polish_translate"),
+    path("api/predict_motion/", views.api_predict_motion, name="api_predict_motion"),
+    path("api/trainer/", views.api_trainer, name="api_trainer"),
+    path("api/progress/", views.api_progress, name="api_progress"),
 ]

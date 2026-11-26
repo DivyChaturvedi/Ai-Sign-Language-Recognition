@@ -6,10 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <title>SignTalk AI | Intelligent Sign Language Translation &amp; Visual Learning Studio</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'recognizer/img/favicon.svg' %}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'recognizer/style.css' %}">
+  <link rel="stylesheet" href="{% static 'recognizer/style.css' %}?v=1.1">
 </head>
 <body>
   <!-- 3D Animated Ambient Background Orbs & Cyber Grid -->
@@ -226,20 +227,28 @@
           <!-- Workspace Navigation Tabs -->
           <nav class="workspace-tabs" role="tablist">
             <button class="tab-btn active" data-tab="tab-translate" role="tab" aria-selected="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><path d="m2 14 3 6 3-6"/></svg>
-              <span>Live Translator</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+              <span>Translator</span>
             </button>
             <button class="tab-btn" data-tab="tab-practice" role="tab" aria-selected="false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-              <span>Practice Arena</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5"/></svg>
+              <span>Practice &amp; Stats</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-twoway" role="tab" aria-selected="false">
+              <span>🔄 Two-Way</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-trainer" role="tab" aria-selected="false">
+              <span>🎓 Train Sign</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-video" role="tab" aria-selected="false">
+              <span>🎬 Video</span>
             </button>
             <button class="tab-btn" data-tab="tab-gallery" role="tab" aria-selected="false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span>Sign Images Gallery</span>
-              <span class="tab-pill-badge">Charts &amp; Signs</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Gallery</span>
             </button>
             <button class="tab-btn" data-tab="tab-history" role="tab" aria-selected="false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               <span>History</span>
             </button>
           </nav>
@@ -286,6 +295,27 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 <span>Clear All</span>
               </button>
+            </div>
+
+            <!-- AI Grammar Polish, Hindi Translator & Dynamic Motion Mode -->
+            <div class="ai-polish-row">
+              <button id="btnPolishGrammar" class="small-tool-btn ai-btn" type="button" title="Convert gloss like 'I STORE GO' to natural English">
+                ✨ Polish Grammar
+              </button>
+              <button id="btnTranslateHindi" class="small-tool-btn hindi-btn" type="button" title="Translate sentence to Hindi &amp; Speak">
+                🇮🇳 Hindi + Speak
+              </button>
+              <label class="switch-control motion-toggle">
+                <input type="checkbox" id="chkMotionMode">
+                <span class="slider"></span>
+                <span class="switch-label">🎞️ Motion Mode (J, Z, Words)</span>
+              </label>
+            </div>
+
+            <div id="hindiPreviewBox" class="hindi-preview-box hidden">
+              <span class="hindi-tag">🇮🇳 Hindi:</span>
+              <span id="hindiPreviewText" class="hindi-text"></span>
+              <button id="btnSpeakHindi" class="small-tool-btn" type="button" title="Speak Hindi">🔊</button>
             </div>
 
             <!-- Quick Phrases Tray -->
@@ -365,6 +395,118 @@
                 <button id="btnSkipChallenge" class="quiz-btn secondary">Skip Sign</button>
                 <button id="btnResetQuiz" class="quiz-btn ghost">Reset Game</button>
                 <button id="btnNextChallenge" class="quiz-btn primary">Next Gesture &rarr;</button>
+              </div>
+
+              <!-- Student Progress Dashboard (SQLite Persisted) -->
+              <div class="progress-dashboard-card">
+                <div class="dash-header">
+                  <span class="dash-title">📊 Student Progress Dashboard</span>
+                  <div class="dash-actions">
+                    <button id="btnRefreshProgress" class="small-tool-btn" type="button">Refresh</button>
+                    <button id="btnResetProgress" class="small-tool-btn danger" type="button">Reset Stats</button>
+                  </div>
+                </div>
+                <div class="dash-summary-row">
+                  <span class="dash-pill">Attempts: <strong id="dashTotalAttempts">0</strong></span>
+                  <span class="dash-pill">Overall Accuracy: <strong id="dashOverallAcc">100%</strong></span>
+                  <span id="dashWeakBadge" class="dash-pill">All Strong!</span>
+                </div>
+                <div id="dashBreakdownList" class="dash-breakdown-list">
+                  <div class="dash-empty">Complete or skip Practice Arena signs to track per-letter accuracy!</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Two-Way Communication (Speech / Text -> Sign Animation Player) -->
+          <div id="tab-twoway" class="tab-panel">
+            <div class="twoway-panel">
+              <div class="dash-header">
+                <span class="dash-title">🔄 Two-Way Translator (Speech / Text → Sign)</span>
+              </div>
+              <div class="twoway-input-row">
+                <input type="text" id="twoWayInput" class="search-input" placeholder="Type or speak (e.g. 'Hello, I am Divy' or 'CAT')…">
+                <button id="btnTwoWayMic" class="small-tool-btn ai-btn" type="button">🎤 Speak</button>
+              </div>
+              <div class="twoway-controls-row">
+                <select id="twoWayLang" class="custom-select mini">
+                  <option value="asl" selected>ASL Signs</option>
+                  <option value="isl">ISL Signs</option>
+                </select>
+                <select id="twoWaySpeed" class="custom-select mini">
+                  <option value="1300">Slow (1.3s)</option>
+                  <option value="850" selected>Normal (0.85s)</option>
+                  <option value="500">Fast (0.5s)</option>
+                </select>
+                <button id="btnTwoWayPlay" class="control-btn primary" type="button">▶ Play Signs</button>
+                <button id="btnTwoWayStop" class="control-btn" type="button">⏹ Stop</button>
+              </div>
+              <div class="twoway-stage">
+                <img id="twoWayStageImg" src="{% static 'recognizer/img/signs/asl_a.svg' %}" alt="Sign Preview" class="twoway-stage-img">
+                <div id="twoWayStageEmoji" class="twoway-stage-emoji hidden">👋</div>
+                <div id="twoWayStageLabel" class="twoway-stage-label">Ready</div>
+                <div id="twoWayStageHint" class="twoway-stage-hint">Enter a sentence or tap Speak to animate signs sequentially.</div>
+              </div>
+              <div id="twoWayTokenTrack" class="twoway-token-track"></div>
+            </div>
+          </div>
+
+          <!-- Tab: Browser Custom Sign Trainer (Static + Dynamic Motion) -->
+          <div id="tab-trainer" class="tab-panel">
+            <div class="trainer-panel">
+              <div class="dash-header">
+                <span class="dash-title">🎓 Browser Custom Sign Trainer (No Terminal Needed)</span>
+              </div>
+              <p class="setting-desc">Capture live hand landmarks right in your browser to add new letters, gestures, or motion words (J, Z, Water, Hospital).</p>
+              <div class="trainer-form-row">
+                <input type="text" id="trainerLabelInput" class="search-input" maxlength="24" placeholder="Sign label (e.g. F, J, Water)…">
+                <select id="trainerModeSelect" class="custom-select mini">
+                  <option value="asl" selected>ASL Static (1 Hand)</option>
+                  <option value="isl">ISL Static (2 Hands)</option>
+                  <option value="motion">Dynamic Motion (J, Z, Words)</option>
+                </select>
+              </div>
+              <div class="trainer-btn-row">
+                <button id="btnTrainerCapture" class="control-btn primary" type="button">📸 Capture Samples</button>
+                <button id="btnTrainerSubmit" class="control-btn success" type="button" disabled>🚀 Train &amp; Save Model</button>
+              </div>
+              <div class="progress-track">
+                <div id="trainerProgressBar" class="progress-fill" style="width:0%"></div>
+              </div>
+              <div id="trainerStatusText" class="trainer-status-text">Enter a label and click Capture Samples while showing the sign.</div>
+              <div class="trainer-existing-wrap">
+                <span class="section-micro-label">Currently Trained Labels (Click × to remove):</span>
+                <div id="trainerClassesList" class="trainer-classes-list">Loading…</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tab: Recorded Video Upload Translation (.MP4 / .WEBM -> Subtitles) -->
+          <div id="tab-video" class="tab-panel">
+            <div class="video-scan-panel">
+              <div class="dash-header">
+                <span class="dash-title">🎬 Recorded Video Sign Subtitles</span>
+              </div>
+              <div class="video-upload-row">
+                <input type="file" id="videoUploadInput" accept="video/mp4,video/webm,video/quicktime" class="video-file-input">
+                <select id="videoUploadLang" class="custom-select mini">
+                  <option value="asl" selected>ASL</option>
+                  <option value="isl">ISL</option>
+                </select>
+              </div>
+              <video id="uploadedVideoPlayer" class="uploaded-video-player hidden" controls playsinline muted></video>
+              <div class="trainer-btn-row">
+                <button id="btnScanVideo" class="control-btn primary" type="button" disabled>🔍 Scan Video for Signs</button>
+                <button id="btnStopVideoScan" class="control-btn danger" type="button" disabled>⏹ Stop</button>
+                <button id="btnExportSrt" class="small-tool-btn" type="button">Export .SRT</button>
+                <button id="btnExportVideoTxt" class="small-tool-btn" type="button">Export .TXT</button>
+              </div>
+              <div class="progress-track">
+                <div id="videoScanBar" class="progress-fill" style="width:0%"></div>
+              </div>
+              <div id="videoScanStatus" class="trainer-status-text">Upload an .mp4 or .webm sign video to extract timestamped subtitles.</div>
+              <div id="videoTranscriptList" class="video-transcript-list">
+                <div class="dash-empty">Timestamped signs will appear here after scanning. Click any row to jump to that moment!</div>
               </div>
             </div>
           </div>
@@ -590,6 +732,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script type="module" src="{% static 'recognizer/app.js' %}?v=2.6"></script>
+  <script type="module" src="{% static 'recognizer/app.js' %}?v=2.7"></script>
+  <script type="module" src="{% static 'recognizer/studio_features.js' %}?v=1.0"></script>
 </body>
 </html>

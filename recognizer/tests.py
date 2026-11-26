@@ -1,12 +1,17 @@
 import json
 import math
 import random
+import shutil
+import tempfile
 from pathlib import Path
+from unittest.mock import patch
 from django.conf import settings
 from django.test import TestCase
 import pandas as pd
 from ml.utils import normalize_landmarks, normalize_hands
 from recognizer.action_predictor import predict_action
+from recognizer.grammar_translator import polish_gloss_to_english, translate_text
+from recognizer.motion_engine import predict_motion
 from recognizer.predictor import predict
 
 
@@ -187,3 +192,163 @@ class PredictAPITest(TestCase):
         r_disc = self.client.get("/api/remote_poll/TEST12/?disconnect=1")
         self.assertEqual(r_disc.status_code, 200)
         self.assertFalse(r_disc.json()["connected"])
+
+
+class ExtendedStudioFeaturesTests(TestCase):
+    def _make_j_sequence(self):
+        # Pinky extended (20), others curled; pinky traces downward hook
+        seq = []
+        base = _synthetic_open_palm(spread=False)
+        for i in range(16):
+            frame = [list(pt) for pt in base]
+            # Curl index, middle, ring near wrist/mcp
+            for tip, mcp in ((8, 5), (12, 9), (16, 13)):
+                frame[tip][1] = frame[mcp][1] + 0.02
+            # Move whole hand / pinky tip downward (+y) then hook left (-x)
+            t = i / 15.0
+            dx = 0.0 if t < 0.55 else -0.15 * ((t - 0.55) / 0.45)
+            dy = 0.20 * min(1.0, t / 0.75)
+            for p in frame:
+                p[0] += dx
+                p[1] += dy
+            seq.append(frame)
+        return seq
+
+    def _make_z_sequence(self):
+        # Index extended (8), others curled; sweeps right -> down-left -> right
+        seq = []
+        base = _synthetic_open_palm(spread=False)
+        for i in range(16):
+            frame = [list(pt) for pt in base]
+            for tip, mcp in ((12, 9), (16, 13), (20, 17)):
+                frame[tip][1] = frame[mcp][1] + 0.02
+            t = i / 15.0
+            if t < 0.35:
+                dx = 0.25 * (t / 0.35)
+                dy = 0.02 * (t / 0.35)
+            elif t < 0.70:
+                u = (t - 0.35) / 0.35
+                dx = 0.25 - 0.25 * u
+                dy = 0.02 + 0.16 * u
+            else:
+                u = (t - 0.70) / 0.30
+                dx = 0.25 * u
+                dy = 0.18
+            for p in frame:
+                p[0] += dx
+                p[1] += dy
+            seq.append(frame)
+        return seq
+
+    def test_grammar_polish_and_hindi_translation(self):
+        self.assertEqual(polish_gloss_to_english("I STORE GO"), "I am going to the store.")
+        self.assertEqual(polish_gloss_to_english("MY NAME DIVY"), "My name is Divy.")
+        self.assertEqual(polish_gloss_to_english("WHERE HOSPITAL"), "Where is the hospital?")
+        self.assertEqual(polish_gloss_to_english("I WATER WANT"), "I want water.")
+
+        # Empty input rejected
+        r_empty = self.client.post("/api/polish_translate/", data=json.dumps({"text": ""}), content_type="application/json")
+        self.assertEqual(r_empty.status_code, 400)
+
+        # Offline dictionary/word-fallback guarantees non-empty Hindi even without internet
+        r_ok = self.client.post(
+            "/api/polish_translate/",
+            data=json.dumps({"text": "I STORE GO", "polish": True, "target_lang": "hi"}),
+            content_type="application/json",
+        )
+        self.assertEqual(r_ok.status_code, 200)
+        body = r_ok.json()
+        self.assertEqual(body["polished"], "I am going to the store.")
+        self.assertTrue(len(body["translated"]) > 0)
+
+    def test_motion_engine_jz_and_ml_training(self):
+        # Test geometric J and Z sequences directly
+        j_seq = self._make_j_sequence()
+        z_seq = self._make_z_sequence()
+
+        with patch("recognizer.motion_engine.get_motion_model", return_value=None):
+            res_j = predict_motion(j_seq)
+            self.assertEqual(res_j["label"], "J")
+            res_z = predict_motion(z_seq)
+            self.assertEqual(res_z["label"], "Z")
+
+        # API validation for bad sequence
+        r_short = self.client.post(
+            "/api/predict_motion/",
+            data=json.dumps({"sequence": j_seq[:3]}),
+            content_type="application/json",
+        )
+        self.assertEqual(r_short.status_code, 400)
+
+        r_ok = self.client.post(
+            "/api/predict_motion/",
+            data=json.dumps({"sequence": z_seq}),
+            content_type="application/json",
+        )
+        self.assertEqual(r_ok.status_code, 200)
+        self.assertTrue(r_ok.json()["detected"])
+
+    def test_custom_trainer_isolated_motion_and_validation(self):
+        # GET status returns expected keys
+        r_get = self.client.get("/api/trainer/")
+        self.assertEqual(r_get.status_code, 200)
+        self.assertIn("asl", r_get.json())
+        self.assertIn("motion", r_get.json())
+
+        # Validation checks
+        r_bad_lbl = self.client.post(
+            "/api/trainer/",
+            data=json.dumps({"mode": "asl", "label": "$$$", "samples": [fake_hand(), fake_hand(), fake_hand()]}),
+            content_type="application/json",
+        )
+        self.assertEqual(r_bad_lbl.status_code, 400)
+
+        # Isolated train + delete for motion mode in tempdir
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            tmp_csv = tmp / "motion.csv"
+            tmp_model = tmp / "motion.joblib"
+            with patch("recognizer.custom_trainer.MOTION_CSV_PATH", tmp_csv), \
+                 patch("recognizer.motion_engine.MOTION_CSV_PATH", tmp_csv), \
+                 patch("recognizer.motion_engine.MOTION_MODEL_PATH", tmp_model):
+                j_seq = self._make_j_sequence()
+                z_seq = self._make_z_sequence()
+                from recognizer.custom_trainer import add_custom_samples_and_train, delete_custom_label
+                out1 = add_custom_samples_and_train("motion", "WaveJ", [j_seq, j_seq, j_seq])
+                self.assertEqual(out1["added"], 3)
+                out2 = add_custom_samples_and_train("motion", "WaveZ", [z_seq, z_seq, z_seq])
+                self.assertEqual(sorted(out2["classes"]), ["WaveJ", "WaveZ"])
+                pred = predict_motion(j_seq)
+                self.assertEqual(pred["label"], "WaveJ")
+                self.assertEqual(pred["source"], "ml_model")
+                del_res = delete_custom_label("motion", "WaveJ")
+                self.assertEqual(del_res["deleted"], 3)
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_student_progress_dashboard_db(self):
+        # Record attempts
+        self.assertEqual(
+            self.client.post("/api/progress/", data=json.dumps({"language": "asl", "target_letter": "A", "predicted_letter": "A", "is_correct": True, "confidence": 0.92}), content_type="application/json").status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.post("/api/progress/", data=json.dumps({"language": "asl", "target_letter": "B", "predicted_letter": "SKIPPED", "is_correct": False, "confidence": 0.0}), content_type="application/json").status_code,
+            200,
+        )
+        self.assertEqual(
+            self.client.post("/api/progress/", data=json.dumps({"language": "asl", "target_letter": "B", "predicted_letter": "SKIPPED", "is_correct": False, "confidence": 0.0}), content_type="application/json").status_code,
+            200,
+        )
+
+        r_stats = self.client.get("/api/progress/")
+        self.assertEqual(r_stats.status_code, 200)
+        stats = r_stats.json()
+        self.assertEqual(stats["total"], 3)
+        self.assertEqual(stats["correct"], 1)
+        self.assertIn("B", stats["weak_letters"])
+        self.assertNotIn("A", stats["weak_letters"])
+
+        # Reset stats
+        self.assertEqual(self.client.delete("/api/progress/").status_code, 200)
+        self.assertEqual(self.client.get("/api/progress/").json()["total"], 0)
