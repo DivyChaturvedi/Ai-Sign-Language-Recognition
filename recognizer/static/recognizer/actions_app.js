@@ -49,6 +49,18 @@
   const handsText = document.getElementById("handsText");
   const badgeFps = document.getElementById("badgeFps");
   const badgeLatency = document.getElementById("badgeLatency");
+  const lightingWarning = document.getElementById("lightingWarning");
+  const handGuideOverlay = document.getElementById("handGuideOverlay");
+  const handGuideText = document.getElementById("handGuideText");
+
+  const lightingMonitor = window.SignTalkUX?.createLightingMonitor({
+    videoEl: video,
+    warningEl: lightingWarning,
+  });
+  const handGuide = window.SignTalkUX?.createHandGuideController({
+    overlayEl: handGuideOverlay,
+    textEl: handGuideText,
+  });
 
   const speechBubble = document.getElementById("speechBubble");
   const speechBubbleEmoji = document.getElementById("speechBubbleEmoji");
@@ -755,6 +767,11 @@
         lastFpsCheck = now;
       }
 
+      // Run low-light check while camera stream is active
+      if (!isPaused && !isCameraStopped && video && !video.paused && !video.ended) {
+        lightingMonitor?.check(now);
+      }
+
       if (isPaused || video.paused || video.ended || !handLandmarker) return;
 
       if (canvas && video.videoWidth > 0 && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
@@ -774,6 +791,11 @@
 
         const handsCount = results.landmarks ? results.landmarks.length : 0;
         if (handsText) handsText.textContent = `${handsCount} Hand${handsCount !== 1 ? "s" : ""}`;
+        handGuide?.update(results.landmarks || [], {
+          allowMultiple: true,
+          paused: isPaused,
+          stopped: isCameraStopped,
+        });
 
         if (handsCount > 0) {
           if (CONFIG.skeletonStyle !== "hidden") {
@@ -910,6 +932,8 @@
           if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
           if (handsText) handsText.textContent = "0 Hands";
           if (badgeFps) badgeFps.textContent = "0 FPS";
+          lightingMonitor?.reset();
+          handGuide?.hide();
           updateActionStopBtn(true);
           syncActionStatus();
         } else {
@@ -931,12 +955,15 @@
         if (isPaused) {
           cameraState = "paused";
           if (video) video.pause();
+          lightingMonitor?.reset();
+          handGuide?.hide();
           if (iconPause) iconPause.classList.add("hidden");
           if (iconPlay) iconPlay.classList.remove("hidden");
           syncActionStatus();
         } else {
           cameraState = "active";
           if (video) video.play().catch(console.warn);
+          handGuide?.update([], { allowMultiple: true, paused: false, stopped: isCameraStopped });
           if (iconPause) iconPause.classList.remove("hidden");
           if (iconPlay) iconPlay.classList.add("hidden");
           syncActionStatus();

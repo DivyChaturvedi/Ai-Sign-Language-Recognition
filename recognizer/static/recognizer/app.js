@@ -71,6 +71,18 @@ const badgeHands = getEl("badgeHands");
 const handsText = getEl("handsText");
 const badgeFps = getEl("badgeFps");
 const badgeLatency = getEl("badgeLatency");
+const lightingWarning = getEl("lightingWarning");
+const handGuideOverlay = getEl("handGuideOverlay");
+const handGuideText = getEl("handGuideText");
+
+const lightingMonitor = window.SignTalkUX?.createLightingMonitor({
+  videoEl: video,
+  warningEl: lightingWarning,
+});
+const handGuide = window.SignTalkUX?.createHandGuideController({
+  overlayEl: handGuideOverlay,
+  textEl: handGuideText,
+});
 
 // Camera Error Recovery Elements
 const cameraErrorOverlay = getEl("cameraErrorOverlay");
@@ -99,7 +111,12 @@ const btnSpeak = getEl("btnSpeak");
 const btnSpace = getEl("btnSpace");
 const btnBackspace = getEl("btnBackspace");
 const btnCopy = getEl("btnCopy");
+const btnSaveWord = getEl("btnSaveWord");
 const btnClear = getEl("btnClear");
+const savedWordsList = getEl("savedWordsList");
+const savedWordsCount = getEl("savedWordsCount");
+const btnExportSavedWords = getEl("btnExportSavedWords");
+const btnClearSavedWords = getEl("btnClearSavedWords");
 
 // Camera Controls
 const languageSelect = getEl("languageSelect");
@@ -139,6 +156,15 @@ const toastEl = getEl("toast");
 const quizStreakEl = getEl("quizStreak");
 const quizScoreEl = getEl("quizScore");
 const quizAccuracyEl = getEl("quizAccuracy");
+const quizTimerEl = getEl("quizTimer");
+const quizTimerLabel = getEl("quizTimerLabel");
+const quizBestStreakEl = getEl("quizBestStreak");
+const quizComboBadge = getEl("quizComboBadge");
+const btnModeEndless = getEl("btnModeEndless");
+const btnModeBlitz = getEl("btnModeBlitz");
+const challengeCard = getEl("challengeCard");
+const challengeBurst = getEl("challengeBurst");
+const challengeLiveFeed = getEl("challengeLiveFeed");
 const challengeImg = getEl("challengeImg");
 const challengeLetter = getEl("challengeLetter");
 const challengeHint = getEl("challengeHint");
@@ -156,6 +182,7 @@ const alphaQuickStrip = getEl("alphaQuickStrip");
 const galleryGrid = getEl("galleryCardsGrid");
 const btnOpenFullChartAsl = getEl("btnOpenFullChartAsl");
 const btnOpenFullChartIsl = getEl("btnOpenFullChartIsl");
+const btnToggleGalleryDiagram = getEl("btnToggleGalleryDiagram");
 
 // Lightbox Elements
 const signLightboxModal = getEl("signLightboxModal");
@@ -249,6 +276,10 @@ function playSuccessFanfare() {
   notes.forEach((freq, idx) => {
     setTimeout(() => playSoundTone(freq, "sine", 0.22, 0.15), idx * 75);
   });
+}
+
+function playQuizMismatchTone() {
+  playSoundTone(270, "triangle", 0.11, 0.08);
 }
 
 // Update sound toggle icon
@@ -568,6 +599,8 @@ if (btnStopCam) {
       if (confidenceTag) confidenceTag.textContent = "0%";
       if (handsText) handsText.textContent = "0 Hands";
       if (badgeFps) badgeFps.textContent = "0 FPS";
+      lightingMonitor?.reset();
+      handGuide?.hide();
       updateStopCamButton(true);
       syncStatus();
       showToast("Camera stopped");
@@ -605,6 +638,8 @@ if (btnPauseCam) {
     if (isVideoPaused) {
       cameraState = "paused";
       if (video) video.pause();
+      lightingMonitor?.reset();
+      handGuide?.hide();
       if (iconPause) iconPause.classList.add("hidden");
       if (iconPlay) iconPlay.classList.remove("hidden");
       syncStatus();
@@ -732,6 +767,83 @@ function copyText() {
     .catch(() => showToast("Could not copy text"));
 }
 
+function getSavedWords() {
+  try {
+    const raw = localStorage.getItem("signtalk_saved_words");
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function persistSavedWords(list) {
+  try {
+    localStorage.setItem("signtalk_saved_words", JSON.stringify(list));
+  } catch (e) {
+    console.warn("Could not store saved words", e);
+  }
+}
+
+function renderSavedWords() {
+  const list = getSavedWords();
+  if (savedWordsCount) savedWordsCount.textContent = list.length;
+  if (!savedWordsList) return;
+  if (list.length === 0) {
+    savedWordsList.innerHTML = '<span class="saved-empty">Click "Save" to bookmark words or sentences for quick reuse.</span>';
+    return;
+  }
+
+  savedWordsList.innerHTML = "";
+  list.forEach((entry, idx) => {
+    const chip = document.createElement("div");
+    chip.className = "saved-word-chip";
+    chip.innerHTML = `
+      <button type="button" class="saved-word-insert" title="Insert '${escapeHtml(entry.word)}' into translator">${escapeHtml(entry.word)}</button>
+      <button type="button" class="saved-word-mini" data-action="speak" title="Speak">🔊</button>
+      <button type="button" class="saved-word-mini del" data-action="delete" title="Remove">&times;</button>
+    `;
+
+    chip.querySelector(".saved-word-insert").addEventListener("click", () => {
+      if (text && !text.endsWith(" ")) text += " ";
+      text += entry.word + " ";
+      renderText();
+      showToast(`Inserted "${entry.word}"`);
+    });
+    chip.querySelector('[data-action="speak"]').addEventListener("click", () => {
+      speakText(entry.word);
+    });
+    chip.querySelector('[data-action="delete"]').addEventListener("click", () => {
+      const updated = getSavedWords();
+      updated.splice(idx, 1);
+      persistSavedWords(updated);
+      renderSavedWords();
+      showToast(`Removed "${entry.word}"`);
+    });
+
+    savedWordsList.appendChild(chip);
+  });
+}
+
+function saveCurrentWord() {
+  const cleaned = text.trim();
+  if (!cleaned) {
+    showToast("Type or sign a word first to save");
+    return;
+  }
+  const lang = languageSelect ? languageSelect.value : "asl";
+  const list = getSavedWords().filter((item) => item.word.toLowerCase() !== cleaned.toLowerCase());
+  list.unshift({
+    word: cleaned,
+    lang: lang.toUpperCase(),
+    savedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+  });
+  if (list.length > 60) list.pop();
+  persistSavedWords(list);
+  renderSavedWords();
+  saveToHistory(cleaned, lang);
+  showToast(`💾 Saved "${cleaned}"!`);
+}
+
 function getCurrentWord() {
   const parts = text.split(/\s+/);
   return parts[parts.length - 1].toLowerCase();
@@ -766,8 +878,36 @@ function renderSuggestions() {
 if (btnSpace) btnSpace.addEventListener("click", addSpace);
 if (btnBackspace) btnBackspace.addEventListener("click", backspace);
 if (btnCopy) btnCopy.addEventListener("click", copyText);
+if (btnSaveWord) btnSaveWord.addEventListener("click", saveCurrentWord);
 if (btnClear) btnClear.addEventListener("click", clearText);
 if (btnSpeak) btnSpeak.addEventListener("click", () => speakText());
+
+if (btnExportSavedWords) {
+  btnExportSavedWords.addEventListener("click", () => {
+    const list = getSavedWords();
+    if (list.length === 0) {
+      showToast("No saved words to export");
+      return;
+    }
+    const content = list.map((w) => `[${w.savedAt || ""}] (${w.lang || "ASL"}) ${w.word}`).join("\n");
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `signtalk-saved-words-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Exported saved words");
+  });
+}
+
+if (btnClearSavedWords) {
+  btnClearSavedWords.addEventListener("click", () => {
+    localStorage.removeItem("signtalk_saved_words");
+    renderSavedWords();
+    showToast("Saved words cleared");
+  });
+}
 
 // Quick Phrase Chips
 document.querySelectorAll(".phrase-chip").forEach((chip) => {
@@ -1021,6 +1161,11 @@ function handLost() {
   if (candidatesList) {
     candidatesList.innerHTML = '<div class="candidate-empty">Position hand to analyze probabilities…</div>';
   }
+  if (challengeLiveFeed && isQuizActive && isPracticeTabActive() && !blitzGameOver) {
+    wrongHoldCount = 0;
+    challengeLiveFeed.className = "challenge-live-feed";
+    challengeLiveFeed.textContent = "✋ Show hand inside guide frame…";
+  }
   syncStatus();
 }
 
@@ -1101,6 +1246,7 @@ function loop() {
   if (!isVideoPaused && video && video.currentTime !== lastVideoTime) {
     lastVideoTime = video.currentTime;
     const now = performance.now();
+    lightingMonitor?.check(now);
 
     // Keep overlay canvas synced with live camera dimensions
     if (canvas && video.videoWidth > 0 && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
@@ -1121,6 +1267,14 @@ function loop() {
       const result = handLandmarker.detectForVideo(video, now);
       if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      const lang = languageSelect ? languageSelect.value : "asl";
+      handGuide?.update(result?.landmarks || [], {
+        requiredHands: lang === "isl" ? 2 : 1,
+        paused: isVideoPaused,
+        stopped: isCameraStopped,
+        hidden: remoteMode,
+      });
+
       if (result && result.landmarks && result.landmarks.length > 0) {
         latestLandmarks = result.landmarks;
         const numHands = result.landmarks.length;
@@ -1134,7 +1288,6 @@ function loop() {
         if (window.SignTalkBridge?.isMotionMode && window.SignTalkBridge.isMotionMode()) {
           syncStatus("Motion Mode: Trace J, Z or words");
         } else {
-          const lang = languageSelect ? languageSelect.value : "asl";
           if (lang === "isl" && numHands < 2) {
             resetHold();
             resetSmoother();
@@ -1197,10 +1350,20 @@ if (languageSelect) {
 let isQuizActive = false; // Enabled automatically when Practice Arena tab is active
 let quizScore = 0;
 let quizStreak = 0;
+let quizBestStreak = Number(localStorage.getItem("signtalk_best_streak") || "0") || 0;
 let quizAttempts = 0;
 let quizCorrect = 0;
+let quizRound = 1;
 let currentTargetLetter = "A";
 let quizHoldStreak = 0;
+let roundStartedAt = performance.now();
+let wrongHoldCount = 0;
+let lastWrongPenaltyLetter = null;
+let quizGameMode = "endless"; // "endless" | "blitz"
+let blitzSecondsLeft = 60;
+let blitzTimerId = null;
+let blitzGameOver = false;
+let quizNextTimer = null;
 const QUIZ_HOLD_REQUIRED = 3;
 
 // Populated dynamically from /api/info/ so quizzes only challenge trained model classes
@@ -1225,7 +1388,109 @@ async function loadModelInfo() {
   }
 }
 
+function getQuizCombo() {
+  return Math.min(4, 1 + Math.floor(quizStreak / 3));
+}
+
+function setChallengeCardVisual(lang, letter, fallbackUrl = null) {
+  if (!challengeImg) return;
+  const prefix = lang === "isl" ? "isl" : "asl";
+  const localSvg = fallbackUrl || `/static/recognizer/img/signs/${prefix}_${letter.toLowerCase()}.svg`;
+  challengeImg.onerror = () => {
+    challengeImg.onerror = null;
+    challengeImg.src = localSvg;
+  };
+  challengeImg.src = localSvg;
+}
+
+function triggerQuizBurst() {
+  if (!challengeBurst) return;
+  challengeBurst.innerHTML = "";
+  const colors = ["#10b981", "#38bdf8", "#f59e0b", "#a855f7", "#ec4899"];
+  for (let i = 0; i < 12; i++) {
+    const dot = document.createElement("span");
+    dot.className = "burst-dot";
+    const angle = (Math.PI * 2 * i) / 12;
+    const dist = 45 + Math.random() * 55;
+    dot.style.setProperty("--tx", `${Math.round(Math.cos(angle) * dist)}px`);
+    dot.style.setProperty("--ty", `${Math.round(Math.sin(angle) * dist)}px`);
+    dot.style.background = colors[i % colors.length];
+    challengeBurst.appendChild(dot);
+  }
+}
+
+function stopBlitzTimer() {
+  if (blitzTimerId) {
+    clearInterval(blitzTimerId);
+    blitzTimerId = null;
+  }
+}
+
+function startBlitzTimer() {
+  stopBlitzTimer();
+  if (quizGameMode !== "blitz" || blitzGameOver) return;
+  blitzTimerId = setInterval(() => {
+    if (!isQuizActive || !isPracticeTabActive() || quizGameMode !== "blitz" || blitzGameOver) return;
+    blitzSecondsLeft = Math.max(0, blitzSecondsLeft - 1);
+    updateQuizScoreboard();
+    if (blitzSecondsLeft <= 0) {
+      blitzGameOver = true;
+      stopBlitzTimer();
+      const acc = quizAttempts > 0 ? Math.round((quizCorrect / quizAttempts) * 100) : 100;
+      if (challengeFeedback) {
+        challengeFeedback.textContent = `🏁 Time's Up! Final Score: ${quizScore} | Accuracy: ${acc}% | Streak Best: ${quizBestStreak}`;
+        challengeFeedback.classList.remove("hidden", "warn");
+      }
+      if (challengeLiveFeed) {
+        challengeLiveFeed.className = "challenge-live-feed";
+        challengeLiveFeed.textContent = "⏱️ 60s Blitz Complete — click Reset Game to play again!";
+      }
+      playSuccessFanfare();
+    }
+  }, 1000);
+}
+
+function startPracticeSign(letter, lang = null, entry = null) {
+  if (quizNextTimer) {
+    clearTimeout(quizNextTimer);
+    quizNextTimer = null;
+  }
+  if (lang && languageSelect && (lang === "asl" || lang === "isl")) {
+    languageSelect.value = lang;
+  }
+  const activeLang = languageSelect ? languageSelect.value : "asl";
+  const practiceTabBtn = document.querySelector('[data-tab="tab-practice"]');
+  if (practiceTabBtn) practiceTabBtn.click();
+
+  isQuizActive = true;
+  blitzGameOver = false;
+  currentTargetLetter = letter;
+  quizHoldStreak = 0;
+  wrongHoldCount = 0;
+  lastWrongPenaltyLetter = null;
+  roundStartedAt = performance.now();
+
+  if (challengeLetter) challengeLetter.textContent = `Sign: "${currentTargetLetter}"`;
+  if (challengeHint) {
+    challengeHint.textContent = entry?.summary || entry?.tip || `Form the sign for '${currentTargetLetter}' with your hand`;
+  }
+  setChallengeCardVisual(activeLang, currentTargetLetter, entry?.local_fallback);
+  if (challengeHoldBar) challengeHoldBar.style.width = "0%";
+  if (challengeHoldText) challengeHoldText.textContent = "Hold sign steadily in view…";
+  if (challengeFeedback) challengeFeedback.classList.add("hidden");
+  if (challengeLiveFeed) {
+    challengeLiveFeed.className = "challenge-live-feed";
+    challengeLiveFeed.textContent = "✋ Form target sign inside frame…";
+  }
+  updateQuizScoreboard();
+  if (quizGameMode === "blitz" && !blitzTimerId) startBlitzTimer();
+}
+
 function pickNewQuizTarget() {
+  if (quizNextTimer) {
+    clearTimeout(quizNextTimer);
+    quizNextTimer = null;
+  }
   const lang = languageSelect ? languageSelect.value : "asl";
   const list = SUPPORTED_SIGNS[lang] || SUPPORTED_SIGNS.asl;
   let nextLetter;
@@ -1235,15 +1500,13 @@ function pickNewQuizTarget() {
 
   currentTargetLetter = nextLetter;
   quizHoldStreak = 0;
+  wrongHoldCount = 0;
+  lastWrongPenaltyLetter = null;
+  roundStartedAt = performance.now();
 
   if (challengeLetter) challengeLetter.textContent = `Sign: "${currentTargetLetter}"`;
 
-  const prefix = lang === "isl" ? "isl" : "asl";
-  const imgUrl = `/static/recognizer/img/signs/${prefix}_${currentTargetLetter.toLowerCase()}.svg`;
-
-  if (challengeImg) {
-    challengeImg.src = imgUrl;
-  }
+  setChallengeCardVisual(lang, currentTargetLetter);
 
   if (dictionaryData && dictionaryData[lang]) {
     const entry = dictionaryData[lang].find((s) => s.letter === currentTargetLetter);
@@ -1255,40 +1518,101 @@ function pickNewQuizTarget() {
   if (challengeHoldBar) challengeHoldBar.style.width = "0%";
   if (challengeHoldText) challengeHoldText.textContent = "Hold sign steadily in view…";
   if (challengeFeedback) challengeFeedback.classList.add("hidden");
+  if (challengeLiveFeed) {
+    challengeLiveFeed.className = "challenge-live-feed";
+    challengeLiveFeed.textContent = "✋ Form target sign inside frame…";
+  }
+  updateQuizScoreboard();
 }
 
 function handleQuizEvaluation(label, confidence) {
-  if (!isQuizActive) return;
+  if (!isQuizActive || blitzGameOver || quizNextTimer) return;
+  const now = performance.now();
+  const pct = Math.round(confidence * 100);
 
   if (label === currentTargetLetter && confidence >= CONFIG.minConfidence) {
+    wrongHoldCount = 0;
     quizHoldStreak++;
     const progress = Math.min(100, Math.round((quizHoldStreak / QUIZ_HOLD_REQUIRED) * 100));
     if (challengeHoldBar) challengeHoldBar.style.width = `${progress}%`;
     if (challengeHoldText) challengeHoldText.textContent = `Matching… ${progress}%`;
+    if (challengeLiveFeed) {
+      challengeLiveFeed.className = "challenge-live-feed live-match";
+      challengeLiveFeed.textContent = `🎯 Locking "${label}" (${pct}%) — hold steady!`;
+    }
 
     if (quizHoldStreak >= QUIZ_HOLD_REQUIRED) {
-      // Completed Challenge
-      quizScore += 10 + quizStreak * 2;
+      const elapsedSec = (now - roundStartedAt) / 1000;
+      const speedBonus = elapsedSec <= 3.5 ? 5 : 0;
       quizStreak++;
+      const combo = getQuizCombo();
+      const gained = 10 + (quizStreak - 1) * 2 + speedBonus;
+      quizScore += gained;
       quizCorrect++;
       quizAttempts++;
+      quizRound++;
+      if (quizStreak > quizBestStreak) {
+        quizBestStreak = quizStreak;
+        try {
+          localStorage.setItem("signtalk_best_streak", String(quizBestStreak));
+        } catch (e) {}
+      }
       updateQuizScoreboard();
       playSuccessFanfare();
+      triggerQuizBurst();
+      if (challengeCard) {
+        challengeCard.classList.remove("success-pop", "wrong-shake");
+        void challengeCard.offsetWidth;
+        challengeCard.classList.add("success-pop");
+      }
       window.SignTalkBridge?.logProgressAttempt(currentTargetLetter, label, true, confidence);
 
       if (challengeFeedback) {
-        challengeFeedback.textContent = `🎉 Great Job! +${10 + (quizStreak - 1) * 2} Points!`;
-        challengeFeedback.classList.remove("hidden");
+        const extras = [];
+        if (combo > 1) extras.push(`Combo x${combo}`);
+        if (speedBonus > 0) extras.push("Speed +5");
+        const suffix = extras.length > 0 ? ` (${extras.join(" • ")})` : "";
+        challengeFeedback.textContent = `🎉 Great Job! +${gained} Points!${suffix}`;
+        challengeFeedback.classList.remove("hidden", "warn");
       }
 
-      setTimeout(() => {
-        pickNewQuizTarget();
-      }, 1200);
+      quizNextTimer = setTimeout(() => {
+        if (!blitzGameOver) pickNewQuizTarget();
+      }, 1000);
     }
   } else {
     quizHoldStreak = Math.max(0, quizHoldStreak - 1);
     if (challengeHoldBar) {
       challengeHoldBar.style.width = `${(quizHoldStreak / QUIZ_HOLD_REQUIRED) * 100}%`;
+    }
+    if (label && label !== "–") {
+      if (challengeLiveFeed) {
+        challengeLiveFeed.className = "challenge-live-feed live-mismatch";
+        challengeLiveFeed.textContent = `👀 Seeing "${label}" (${pct}%) — try "${currentTargetLetter}"`;
+      }
+      const inGrace = now - roundStartedAt < 1200;
+      if (!inGrace && confidence >= CONFIG.minConfidence && !quizNextTimer) {
+        wrongHoldCount++;
+        if (wrongHoldCount >= 5 && label !== lastWrongPenaltyLetter) {
+          lastWrongPenaltyLetter = label;
+          wrongHoldCount = 0;
+          quizStreak = 0;
+          quizAttempts++;
+          updateQuizScoreboard();
+          playQuizMismatchTone();
+          window.SignTalkBridge?.logProgressAttempt(currentTargetLetter, label, false, confidence);
+          if (challengeCard) {
+            challengeCard.classList.remove("wrong-shake");
+            void challengeCard.offsetWidth;
+            challengeCard.classList.add("wrong-shake");
+          }
+          if (challengeFeedback) {
+            challengeFeedback.textContent = `⚠️ Seeing "${label}" (${pct}%) — try "${currentTargetLetter}"!`;
+            challengeFeedback.classList.remove("hidden");
+            challengeFeedback.classList.add("warn");
+          }
+        }
+      }
     }
   }
 }
@@ -1298,13 +1622,70 @@ function updateQuizScoreboard() {
   if (quizStreakEl) quizStreakEl.textContent = `${quizStreak} 🔥`;
   const acc = quizAttempts > 0 ? Math.round((quizCorrect / quizAttempts) * 100) : 100;
   if (quizAccuracyEl) quizAccuracyEl.textContent = `${acc}%`;
+  if (quizBestStreakEl) quizBestStreakEl.textContent = quizBestStreak;
+  if (quizComboBadge) {
+    const combo = getQuizCombo();
+    quizComboBadge.textContent = combo > 1 ? `Combo x${combo} 🔥` : "Combo x1";
+    quizComboBadge.classList.toggle("hot", combo > 1);
+  }
+  if (quizTimerEl && quizTimerLabel) {
+    if (quizGameMode === "blitz") {
+      const m = Math.floor(blitzSecondsLeft / 60);
+      const s = String(blitzSecondsLeft % 60).padStart(2, "0");
+      quizTimerEl.textContent = `${m}:${s}`;
+      quizTimerLabel.textContent = "Time Left";
+    } else {
+      quizTimerEl.textContent = `#${quizRound}`;
+      quizTimerLabel.textContent = "Round";
+    }
+  }
+}
+
+function resetPracticeGame(mode = quizGameMode) {
+  if (quizNextTimer) {
+    clearTimeout(quizNextTimer);
+    quizNextTimer = null;
+  }
+  quizGameMode = mode;
+  quizScore = 0;
+  quizStreak = 0;
+  quizAttempts = 0;
+  quizCorrect = 0;
+  quizRound = 1;
+  blitzSecondsLeft = 60;
+  blitzGameOver = false;
+  if (btnModeEndless) btnModeEndless.classList.toggle("active", quizGameMode === "endless");
+  if (btnModeBlitz) btnModeBlitz.classList.toggle("active", quizGameMode === "blitz");
+  updateQuizScoreboard();
+  pickNewQuizTarget();
+  if (quizGameMode === "blitz") {
+    startBlitzTimer();
+  } else {
+    stopBlitzTimer();
+  }
+}
+
+if (btnModeEndless) {
+  btnModeEndless.addEventListener("click", () => {
+    resetPracticeGame("endless");
+    showToast("Endless Practice mode active");
+  });
+}
+
+if (btnModeBlitz) {
+  btnModeBlitz.addEventListener("click", () => {
+    resetPracticeGame("blitz");
+    showToast("60s Arcade Blitz started — Go!");
+  });
 }
 
 if (btnSkipChallenge) {
   btnSkipChallenge.addEventListener("click", () => {
+    if (blitzGameOver) return;
     window.SignTalkBridge?.logProgressAttempt(currentTargetLetter, "SKIPPED", false, 0);
     quizStreak = 0;
     quizAttempts++;
+    quizRound++;
     updateQuizScoreboard();
     showToast(`Skipped sign '${currentTargetLetter}'`);
     pickNewQuizTarget();
@@ -1312,20 +1693,19 @@ if (btnSkipChallenge) {
 }
 
 if (btnNextChallenge) {
-  btnNextChallenge.addEventListener("click", pickNewQuizTarget);
+  btnNextChallenge.addEventListener("click", () => {
+    if (!blitzGameOver) pickNewQuizTarget();
+  });
 }
 
 if (btnResetQuiz) {
   btnResetQuiz.addEventListener("click", () => {
-    quizScore = 0;
-    quizStreak = 0;
-    quizAttempts = 0;
-    quizCorrect = 0;
-    updateQuizScoreboard();
-    pickNewQuizTarget();
-    showToast("Quiz stats reset");
+    resetPracticeGame(quizGameMode);
+    showToast("Practice game reset");
   });
 }
+
+updateQuizScoreboard();
 
 // ---- Visual Sign Images Gallery ----
 async function loadDictionary() {
@@ -1370,44 +1750,65 @@ function initAlphaStrip() {
   });
 }
 
+let useLocalDiagrams = true;
+
+function resolveSignImage(item) {
+  const prefix = item.category === "isl" ? "isl" : "asl";
+  const fallback = item.local_fallback || `/static/recognizer/img/signs/${prefix}_${String(item.letter || "a").toLowerCase()}.svg`;
+  const primary = useLocalDiagrams ? fallback : (item.image_url || fallback);
+  return { primary, fallback };
+}
+
 function getGalleryItems() {
   if (!dictionaryData) return [];
-  let items = [];
+  const numbersList = (dictionaryData.numbers || []).map((n) => ({
+    letter: n.digit,
+    name: n.name,
+    category: "number",
+    is_ai_supported: false,
+    image_url: n.image_url,
+    local_fallback: n.local_fallback || `/static/recognizer/img/signs/num_${n.digit}.svg`,
+    summary: `Sign for number ${n.digit} in American Sign Language`,
+    steps: [`Hold hand upright and form the manual sign for digit ${n.digit}.`],
+    tip: "Keep fingers steady in clear view of the camera.",
+  }));
 
+  let items = [];
   if (currentGalleryCategory === "all") {
     items = [
       ...(dictionaryData.asl || []),
-      ...(dictionaryData.isl || []).filter((s) => s.is_ai_supported),
+      ...(dictionaryData.isl || []),
+      ...numbersList,
+      ...(dictionaryData.actions || []),
     ];
   } else if (currentGalleryCategory === "asl") {
     items = dictionaryData.asl || [];
   } else if (currentGalleryCategory === "isl") {
     items = dictionaryData.isl || [];
   } else if (currentGalleryCategory === "numbers") {
-    items = (dictionaryData.numbers || []).map((n) => ({
-      letter: n.digit,
-      name: n.name,
-      category: "number",
-      is_ai_supported: false,
-      image_url: n.image_url,
-      summary: `Sign for number ${n.digit} in American Sign Language`,
-      steps: [`Hold hand upright and form the manual sign for digit ${n.digit}.`],
-      tip: "Keep fingers steady in clear view of the camera.",
-    }));
+    items = numbersList;
+  } else if (currentGalleryCategory === "actions") {
+    items = dictionaryData.actions || [];
   }
 
   if (currentAlphaFilter) {
-    items = items.filter((item) => item.letter.toUpperCase() === currentAlphaFilter);
+    items = items.filter((item) => {
+      const l = (item.letter || "").toUpperCase();
+      const n = (item.name || "").toUpperCase();
+      return l === currentAlphaFilter || (item.category === "action" && n.startsWith(currentAlphaFilter));
+    });
   }
 
   const query = gallerySearch ? gallerySearch.value.trim().toLowerCase() : "";
   if (query) {
     items = items.filter((item) => {
       return (
-        item.letter.toLowerCase().includes(query) ||
+        (item.letter && item.letter.toLowerCase().includes(query)) ||
         (item.name && item.name.toLowerCase().includes(query)) ||
         (item.summary && item.summary.toLowerCase().includes(query)) ||
-        (item.tip && item.tip.toLowerCase().includes(query))
+        (item.tip && item.tip.toLowerCase().includes(query)) ||
+        (item.category && item.category.toLowerCase().includes(query)) ||
+        (item.phrase && item.phrase.toLowerCase().includes(query))
       );
     });
   }
@@ -1434,33 +1835,43 @@ function renderGallery() {
     const card = document.createElement("div");
     card.className = "sign-card";
 
-    const aiBadgeHtml = item.is_ai_supported
-      ? `<span class="ai-tag">🤖 AI Ready</span>`
-      : `<span class="ref-tag">📖 Reference</span>`;
+    const isMotionLetter = item.category === "alphabet" && (item.letter === "J" || item.letter === "Z");
+    const statusTag = (item.is_animated || isMotionLetter)
+      ? `<span class="anim-tag">🎬 Animated</span>`
+      : item.is_ai_supported
+        ? `<span class="ai-tag">🤖 AI Ready</span>`
+        : `<span class="ref-tag">📖 Reference</span>`;
 
-    const prefix = item.category === "isl" ? "isl" : "asl";
-    const fallbackUrl = item.local_fallback || `/static/recognizer/img/signs/${prefix}_${item.letter.toLowerCase()}.svg`;
+    const langLabel = item.category === "isl"
+      ? "ISL"
+      : item.category === "action"
+        ? "ACTION"
+        : item.category === "number"
+          ? "NUM"
+          : "ASL";
+
+    const { primary, fallback } = resolveSignImage(item);
 
     card.innerHTML = `
       <div class="sign-card-top">
-        <div class="sign-letter-badge">${item.letter}</div>
-        ${aiBadgeHtml}
+        <div class="sign-letter-badge">${escapeHtml(item.letter)}</div>
+        ${statusTag}
       </div>
-      <div class="sign-img-frame" title="Click to inspect sign ${item.letter}">
+      <div class="sign-img-frame" title="Click to inspect ${escapeHtml(item.name)}">
         <img 
-          src="${item.image_url}" 
-          alt="Hand sign gesture ${item.letter}" 
+          src="${escapeHtml(primary)}" 
+          alt="${escapeHtml(item.name)}" 
           class="sign-img" 
           loading="lazy"
-          onerror="this.onerror=null; this.src='${fallbackUrl}';"
+          onerror="this.onerror=null; this.src='${escapeHtml(fallback)}';"
         >
       </div>
       <div class="sign-card-body">
-        <div class="sign-card-title">${item.name}</div>
-        <div class="sign-card-summary">${item.summary || ""}</div>
+        <div class="sign-card-title">${escapeHtml(item.name)} <span style="opacity:0.65;font-size:0.72rem;">(${langLabel})</span></div>
+        <div class="sign-card-summary">${escapeHtml(item.summary || "")}</div>
       </div>
       <div class="sign-card-actions">
-        <button class="btn-card-practice" title="Practice sign ${item.letter}">Practice 🎯</button>
+        <button class="btn-card-practice" title="Practice ${escapeHtml(item.name)}">${item.category === "action" ? "Try in Action Studio →" : "Practice 🎯"}</button>
         <button class="btn-card-inspect" title="View details">Details 🔍</button>
       </div>
     `;
@@ -1469,21 +1880,13 @@ function renderGallery() {
     card.querySelector(".btn-card-inspect").addEventListener("click", () => openLightbox(item));
 
     card.querySelector(".btn-card-practice").addEventListener("click", () => {
-      const practiceTabBtn = document.querySelector('[data-tab="tab-practice"]');
-      if (practiceTabBtn) practiceTabBtn.click();
-      isQuizActive = true;
-      currentTargetLetter = item.letter;
-      if (challengeLetter) challengeLetter.textContent = `Sign: "${item.letter}"`;
-      if (challengeHint) challengeHint.textContent = item.summary || "";
-      if (challengeImg) {
-        challengeImg.src = item.image_url;
-        challengeImg.onerror = () => {
-          challengeImg.src = fallbackUrl;
-        };
+      if (item.category === "action") {
+        window.location.href = "/actions/";
+        return;
       }
-      quizHoldStreak = 0;
-      if (challengeHoldBar) challengeHoldBar.style.width = "0%";
-      showToast(`Practice mode: Sign '${item.letter}'`);
+      const targetLang = item.category === "isl" ? "isl" : "asl";
+      startPracticeSign(item.letter, targetLang, item);
+      showToast(`Practice mode (${targetLang.toUpperCase()}): Sign '${item.letter}'`);
     });
 
     galleryGrid.appendChild(card);
@@ -1491,14 +1894,28 @@ function renderGallery() {
 }
 
 // Category filter pills
-document.querySelectorAll(".cat-pill").forEach((pill) => {
+document.querySelectorAll(".cat-pill[data-category]").forEach((pill) => {
   pill.addEventListener("click", () => {
-    document.querySelectorAll(".cat-pill").forEach((p) => p.classList.remove("active"));
+    document.querySelectorAll(".cat-pill[data-category]").forEach((p) => p.classList.remove("active"));
     pill.classList.add("active");
     currentGalleryCategory = pill.getAttribute("data-category");
     renderGallery();
   });
 });
+
+if (btnToggleGalleryDiagram) {
+  const syncToggleLabel = () => {
+    btnToggleGalleryDiagram.classList.toggle("active", useLocalDiagrams);
+    btnToggleGalleryDiagram.textContent = useLocalDiagrams ? "🦴 AI Diagrams ON" : "🌐 Classic Illustrations";
+  };
+  syncToggleLabel();
+  btnToggleGalleryDiagram.addEventListener("click", () => {
+    useLocalDiagrams = !useLocalDiagrams;
+    syncToggleLabel();
+    renderGallery();
+    showToast(useLocalDiagrams ? "Showing offline AI hand diagrams" : "Showing classic Wikimedia hand illustrations");
+  });
+}
 
 if (gallerySearch) {
   gallerySearch.addEventListener("input", renderGallery);
@@ -1507,15 +1924,23 @@ if (gallerySearch) {
 // ---- Sign Lightbox Modal ----
 function openLightbox(item) {
   currentActiveLightboxSign = item;
-  if (lightboxBadge) lightboxBadge.textContent = item.category === "isl" ? "ISL Sign" : "ASL Sign";
+  if (lightboxBadge) {
+    lightboxBadge.textContent = item.category === "isl"
+      ? "ISL Sign"
+      : item.category === "action"
+        ? "Action Sign"
+        : item.category === "number"
+          ? "Number Sign"
+          : "ASL Sign";
+  }
   if (lightboxTitle) lightboxTitle.textContent = item.name;
-  const prefix = item.category === "isl" ? "isl" : "asl";
-  const fallbackUrl = item.local_fallback || `/static/recognizer/img/signs/${prefix}_${item.letter.toLowerCase()}.svg`;
+  const { primary, fallback } = resolveSignImage(item);
   if (lightboxImg) {
-    lightboxImg.src = item.image_url;
     lightboxImg.onerror = () => {
-      lightboxImg.src = fallbackUrl;
+      lightboxImg.onerror = null;
+      lightboxImg.src = fallback;
     };
+    lightboxImg.src = primary;
   }
   if (lightboxSummary) lightboxSummary.textContent = item.summary || "No description available.";
 
@@ -1553,22 +1978,13 @@ if (btnPracticeThisSign) {
   btnPracticeThisSign.addEventListener("click", () => {
     closeLightbox();
     if (!currentActiveLightboxSign) return;
-    const practiceTabBtn = document.querySelector('[data-tab="tab-practice"]');
-    if (practiceTabBtn) practiceTabBtn.click();
-    isQuizActive = true;
-    currentTargetLetter = currentActiveLightboxSign.letter;
-    if (challengeLetter) challengeLetter.textContent = `Sign: "${currentTargetLetter}"`;
-    if (challengeHint) challengeHint.textContent = currentActiveLightboxSign.summary || "";
-    if (challengeImg) {
-      challengeImg.src = currentActiveLightboxSign.image_url;
-      const prefix = currentActiveLightboxSign.category === "isl" ? "isl" : "asl";
-      challengeImg.onerror = () => {
-        challengeImg.src = `/static/recognizer/img/signs/${prefix}_${currentTargetLetter.toLowerCase()}.svg`;
-      };
+    if (currentActiveLightboxSign.category === "action") {
+      window.location.href = "/actions/";
+      return;
     }
-    quizHoldStreak = 0;
-    if (challengeHoldBar) challengeHoldBar.style.width = "0%";
-    showToast(`Practice mode: Sign '${currentTargetLetter}'`);
+    const targetLang = currentActiveLightboxSign.category === "isl" ? "isl" : "asl";
+    startPracticeSign(currentActiveLightboxSign.letter, targetLang, currentActiveLightboxSign);
+    showToast(`Practice mode (${targetLang.toUpperCase()}): Sign '${currentActiveLightboxSign.letter}'`);
   });
 }
 
@@ -1630,6 +2046,8 @@ function stopLaptopCamera() {
   }
   if (video) video.srcObject = null;
   if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  lightingMonitor?.reset();
+  handGuide?.hide();
 }
 
 function generateSessionId() {
@@ -1786,6 +2204,9 @@ function initTabs() {
         if (!valid.includes(currentTargetLetter)) {
           pickNewQuizTarget();
         }
+        if (quizGameMode === "blitz" && !blitzGameOver) startBlitzTimer();
+      } else {
+        stopBlitzTimer();
       }
     });
   });
@@ -1846,7 +2267,22 @@ function renderHistory() {
         <span class="history-time">${escapeHtml(item.time)}</span>
       </div>
       <div class="history-item-text">${escapeHtml(item.text)}</div>
+      <div class="history-item-actions">
+        <button type="button" class="small-tool-btn" data-hact="load">↩️ Load</button>
+        <button type="button" class="small-tool-btn" data-hact="speak">🔊 Speak</button>
+        <button type="button" class="small-tool-btn" data-hact="copy">📋 Copy</button>
+      </div>
     `;
+    div.querySelector('[data-hact="load"]').addEventListener("click", () => {
+      text = item.text;
+      renderText();
+      document.querySelector('[data-tab="tab-translate"]')?.click();
+      showToast("Loaded into translator");
+    });
+    div.querySelector('[data-hact="speak"]').addEventListener("click", () => speakText(item.text));
+    div.querySelector('[data-hact="copy"]').addEventListener("click", () => {
+      navigator.clipboard?.writeText(item.text).then(() => showToast("Copied!"));
+    });
     historyList.appendChild(div);
   });
 }
@@ -2018,6 +2454,7 @@ async function init() {
   try { initTabs(); } catch (e) { console.warn("initTabs error:", e); }
   try { init3DTiltEffects(); } catch (e) { console.warn("init3D error:", e); }
   try { renderHistory(); } catch (e) { console.warn("renderHistory error:", e); }
+  try { renderSavedWords(); } catch (e) { console.warn("renderSavedWords error:", e); }
   try { loadModelInfo(); } catch (e) { console.warn("loadModelInfo error:", e); }
   try { loadDictionary(); } catch (e) { console.warn("loadDictionary error:", e); }
 

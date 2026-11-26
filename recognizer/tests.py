@@ -60,10 +60,19 @@ class PageAndStaticTests(TestCase):
         self.assertEqual(r_index.status_code, 200)
         self.assertIn(b"vision-column", r_index.content)
         self.assertIn(b"app.js", r_index.content)
+        self.assertIn(b"ux_monitors.js", r_index.content)
+        self.assertIn(b"handGuideOverlay", r_index.content)
+        self.assertIn(b"lightingWarning", r_index.content)
+        self.assertIn(b"btnModeBlitz", r_index.content)
+        self.assertIn(b"btnSaveWord", r_index.content)
+        self.assertIn(b"savedWordsList", r_index.content)
 
         r_actions = self.client.get("/actions/")
         self.assertEqual(r_actions.status_code, 200)
         self.assertIn(b"actions_app.js", r_actions.content)
+        self.assertIn(b"ux_monitors.js", r_actions.content)
+        self.assertIn(b"handGuideOverlay", r_actions.content)
+        self.assertIn(b"lightingWarning", r_actions.content)
 
     def test_metadata_endpoints(self):
         r_info = self.client.get("/api/info/")
@@ -77,6 +86,13 @@ class PageAndStaticTests(TestCase):
         d = r_dict.json()
         self.assertEqual(len(d["asl"]), 26)
         self.assertEqual(len(d["isl"]), 26)
+        self.assertEqual(len(d["numbers"]), 10)
+        self.assertEqual(len(d["actions"]), 13)
+        static_signs_root = settings.BASE_DIR / "recognizer" / "static"
+        for section in ("asl", "isl", "numbers", "actions"):
+            for item in d[section]:
+                rel = item["local_fallback"].lstrip("/").replace("static/", "", 1)
+                self.assertTrue((static_signs_root / rel).exists(), f"Missing sign asset: {item['local_fallback']}")
         if info["asl"]["available"]:
             supported = {x["letter"] for x in d["asl"] if x["is_ai_supported"]}
             self.assertEqual(supported, set(info["asl"]["classes"]))

@@ -2,14 +2,18 @@
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0b0f19" />
-      <stop offset="100%" stop-color="#131d2e" />
+      <stop offset="100%" stop-color="#1e293b" />
     </linearGradient>
-    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="boneGrad" x1="0%" y1="100%" x2="0%" y2="0%">
       <stop offset="0%" stop-color="#10b981" />
       <stop offset="100%" stop-color="#06b6d4" />
     </linearGradient>
-    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="4" result="blur" />
+    <linearGradient id="badgeCircle" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
       <feMerge>
         <feMergeNode in="blur" />
         <feMergeNode in="SourceGraphic" />
@@ -17,42 +21,119 @@
     </filter>
   </defs>
 
-  <!-- Card Background -->
-  <rect width="320" height="320" rx="20" fill="url(#bgGrad)" stroke="rgba(16, 185, 129, 0.28)" stroke-width="1.5" />
-  
-  <!-- Subtle circular radar rings -->
-  <circle cx="160" cy="130" r="85" fill="none" stroke="rgba(255, 255, 255, 0.03)" stroke-width="1" />
-  <circle cx="160" cy="130" r="55" fill="none" stroke="rgba(255, 255, 255, 0.03)" stroke-width="1" />
+  <rect width="320" height="320" rx="20" fill="url(#bgGrad)" stroke="rgba(16, 185, 129, 0.30)" stroke-width="1.5" />
+  <circle cx="160.0" cy="136.0" r="108" fill="none" stroke="rgba(255, 255, 255, 0.03)" stroke-width="1" />
+  <circle cx="160.0" cy="136.0" r="68" fill="none" stroke="rgba(255, 255, 255, 0.03)" stroke-width="1" />
+  <text x="160.0" y="182.0" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-size="140" font-weight="900" fill="rgba(255, 255, 255, 0.035)" letter-spacing="-2">X</text>
 
-  <!-- Watermark Letter -->
-  <text x="160" y="180" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-size="140" font-weight="900" fill="rgba(255, 255, 255, 0.03)" letter-spacing="-2">X</text>
-
-  <!-- Language Badge -->
   <g transform="translate(18, 16)">
-    <rect width="64" height="24" rx="6" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981" stroke-width="1"/>
-    <text x="32" y="16" text-anchor="middle" font-family="system-ui" font-size="11" font-weight="800" fill="#10b981">ISL 🇮🇳</text>
+    <rect width="54" height="22" rx="6" fill="rgba(99, 102, 241, 0.2)" stroke="rgba(99, 102, 241, 0.45)" stroke-width="1"/>
+    <text x="27" y="15" text-anchor="middle" font-family="system-ui" font-size="11" font-weight="800" fill="#93c5fd">ISL</text>
+  </g>
+  <g transform="translate(236, 16)">
+    <rect width="66" height="22" rx="6" fill="rgba(6, 182, 212, 0.16)" stroke="rgba(6, 182, 212, 0.35)" stroke-width="1"/>
+    <text x="33" y="15" text-anchor="middle" font-family="system-ui" font-size="10" font-weight="700" fill="#38bdf8">2 HANDS</text>
   </g>
 
-  <!-- Hands Tag -->
-  <g transform="translate(230, 16)">
-    <rect width="72" height="24" rx="6" fill="rgba(6, 182, 212, 0.15)" stroke="rgba(6, 182, 212, 0.4)" stroke-width="1"/>
-    <text x="36" y="16" text-anchor="middle" font-family="system-ui" font-size="10" font-weight="700" fill="#38bdf8">2 HANDS</text>
+  <polygon points="47.5,162.3 77.7,151.5 111.3,152.8 114.1,119.0 99.7,124.3 82.4,140.6 65.7,161.2" fill="rgba(6, 182, 212, 0.08)" stroke="rgba(6, 182, 212, 0.2)" stroke-width="7" stroke-linejoin="round" />
+  <polygon points="272.5,169.9 242.2,169.6 209.6,173.6 197.9,128.8 210.9,132.5 224.9,147.5 238.7,166.2" fill="rgba(6, 182, 212, 0.08)" stroke="rgba(6, 182, 212, 0.2)" stroke-width="7" stroke-linejoin="round" />
+  <g filter="url(#neonGlow)">
+    <line x1="47.5" y1="162.3" x2="77.7" y2="151.5" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="77.7" y1="151.5" x2="111.3" y2="152.8" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="111.3" y1="152.8" x2="131.3" y2="170.9" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="131.3" y1="170.9" x2="130.1" y2="188.4" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="47.5" y1="162.3" x2="114.1" y2="119.0" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="114.1" y1="119.0" x2="144.8" y2="108.0" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="144.8" y1="108.0" x2="165.3" y2="92.9" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="165.3" y1="92.9" x2="182.7" y2="77.6" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="47.5" y1="162.3" x2="99.7" y2="124.3" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="99.7" y1="124.3" x2="139.2" y2="163.9" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="139.2" y1="163.9" x2="123.4" y2="171.3" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="123.4" y1="171.3" x2="109.0" y2="164.3" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="47.5" y1="162.3" x2="82.4" y2="140.6" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="82.4" y1="140.6" x2="118.1" y2="183.9" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="118.1" y1="183.9" x2="103.3" y2="183.1" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="103.3" y1="183.1" x2="92.1" y2="171.8" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="47.5" y1="162.3" x2="65.7" y2="161.2" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="65.7" y1="161.2" x2="95.5" y2="194.3" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="95.5" y1="194.3" x2="86.1" y2="192.8" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="86.1" y1="192.8" x2="75.3" y2="182.4" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="114.1" y1="119.0" x2="99.7" y2="124.3" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="99.7" y1="124.3" x2="82.4" y2="140.6" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="82.4" y1="140.6" x2="65.7" y2="161.2" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="272.5" y1="169.9" x2="242.2" y2="169.6" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="242.2" y1="169.6" x2="209.6" y2="173.6" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="209.6" y1="173.6" x2="185.5" y2="189.5" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="185.5" y1="189.5" x2="172.6" y2="198.0" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="272.5" y1="169.9" x2="197.9" y2="128.8" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="197.9" y1="128.8" x2="170.0" y2="108.6" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="170.0" y1="108.6" x2="151.1" y2="93.7" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="151.1" y1="93.7" x2="138.6" y2="80.9" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="272.5" y1="169.9" x2="210.9" y2="132.5" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="210.9" y1="132.5" x2="168.3" y2="167.1" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="168.3" y1="167.1" x2="180.6" y2="186.8" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="180.6" y1="186.8" x2="196.7" y2="186.3" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="272.5" y1="169.9" x2="224.9" y2="147.5" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="224.9" y1="147.5" x2="189.2" y2="190.4" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="189.2" y1="190.4" x2="203.4" y2="201.1" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="203.4" y1="201.1" x2="216.8" y2="192.8" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="272.5" y1="169.9" x2="238.7" y2="166.2" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="238.7" y1="166.2" x2="211.6" y2="203.0" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="211.6" y1="203.0" x2="222.5" y2="210.4" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="222.5" y1="210.4" x2="233.4" y2="201.0" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="197.9" y1="128.8" x2="210.9" y2="132.5" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="210.9" y1="132.5" x2="224.9" y2="147.5" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
+    <line x1="224.9" y1="147.5" x2="238.7" y2="166.2" stroke="url(#boneGrad)" stroke-width="3.5" stroke-linecap="round" />
   </g>
+  <circle cx="47.5" cy="162.3" r="6.2" fill="#a855f7" stroke="#ffffff" stroke-width="2" />
+  <circle cx="77.7" cy="151.5" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="111.3" cy="152.8" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="131.3" cy="170.9" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="130.1" cy="188.4" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
+  <circle cx="114.1" cy="119.0" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="144.8" cy="108.0" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="165.3" cy="92.9" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="182.7" cy="77.6" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
+  <circle cx="99.7" cy="124.3" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="139.2" cy="163.9" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="123.4" cy="171.3" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="109.0" cy="164.3" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
+  <circle cx="82.4" cy="140.6" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="118.1" cy="183.9" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="103.3" cy="183.1" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="92.1" cy="171.8" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
+  <circle cx="65.7" cy="161.2" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="95.5" cy="194.3" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="86.1" cy="192.8" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="75.3" cy="182.4" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
+  <circle cx="272.5" cy="169.9" r="6.2" fill="#a855f7" stroke="#ffffff" stroke-width="2" />
+  <circle cx="242.2" cy="169.6" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="209.6" cy="173.6" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="185.5" cy="189.5" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="172.6" cy="198.0" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
+  <circle cx="197.9" cy="128.8" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="170.0" cy="108.6" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="151.1" cy="93.7" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="138.6" cy="80.9" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
+  <circle cx="210.9" cy="132.5" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="168.3" cy="167.1" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="180.6" cy="186.8" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="196.7" cy="186.3" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
+  <circle cx="224.9" cy="147.5" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="189.2" cy="190.4" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="203.4" cy="201.1" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="216.8" cy="192.8" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
+  <circle cx="238.7" cy="166.2" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="211.6" cy="203.0" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="222.5" cy="210.4" r="3.3" fill="#38bdf8" stroke="#0f172a" stroke-width="1.4" />
+  <circle cx="233.4" cy="201.0" r="5.5" fill="#ffffff" stroke="#06b6d4" stroke-width="2.3" />
 
-  <!-- Main Hand Gesture Illustration Scaled Up -->
-  <g transform="translate(160, 130) scale(2.0)" filter="url(#softGlow)">
-    <circle cx="0" cy="0" r="34" fill="rgba(6, 182, 212, 0.06)" stroke="rgba(6, 182, 212, 0.2)" stroke-width="1" />
 
-        <!-- Cross gesture -->
-        <line x1="-16" y1="-16" x2="16" y2="16" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
-        <line x1="16" y1="-16" x2="-16" y2="16" stroke="#06b6d4" stroke-width="4" stroke-linecap="round"/>
-        <circle cx="0" cy="0" r="4" fill="#fff"/>
-  </g>
-
-  <!-- Bottom Details -->
-  <g transform="translate(0, 245)">
-    <rect x="16" y="0" width="288" height="60" rx="12" fill="rgba(255, 255, 255, 0.03)" stroke="rgba(255, 255, 255, 0.06)" stroke-width="1"/>
-    <text x="160" y="24" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-size="15" font-weight="800" fill="#f8fafc">Crossed Indices</text>
-    <text x="160" y="44" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-size="11" font-weight="500" fill="#94a3b8">Both index fingers crossed forming 'X' i...</text>
+  <g transform="translate(16, 266)">
+    <rect width="288" height="38" rx="10" fill="rgba(15, 23, 42, 0.9)" stroke="rgba(255, 255, 255, 0.1)" stroke-width="1" />
+    <circle cx="22" cy="19" r="12" fill="url(#badgeCircle)" />
+    <text x="22" y="24" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="800" fill="#ffffff">X</text>
+    <text x="44" y="16" font-family="'Plus Jakarta Sans', sans-serif" font-size="11.5" font-weight="700" fill="#f8fafc">Letter X (ISL)</text>
+    <text x="44" y="29" font-family="'Plus Jakarta Sans', sans-serif" font-size="9.5" font-weight="500" fill="#94a3b8">Both index fingers crossed in X</text>
   </g>
 </svg>

@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'recognizer/style.css' %}?v=1.2">
+  <link rel="stylesheet" href="{% static 'recognizer/style.css' %}?v=1.4">
 </head>
 <body>
   <!-- 3D Animated Ambient Background Orbs & Cyber Grid -->
@@ -137,6 +137,20 @@
               <span class="hud-bracket br"></span>
               <div class="hud-scanline"></div>
             </div>
+
+            <!-- Interactive Hand Positioning Guide Overlay -->
+            <div id="handGuideOverlay" class="hand-guide-overlay state-idle hidden" aria-hidden="true">
+              <div class="hand-guide-frame">
+                <span class="hg-corner tl"></span>
+                <span class="hg-corner tr"></span>
+                <span class="hg-corner bl"></span>
+                <span class="hg-corner br"></span>
+              </div>
+              <div id="handGuidePill" class="hand-guide-pill">
+                <span class="hg-dot"></span>
+                <span id="handGuideText">Place hand inside guide frame</span>
+              </div>
+            </div>
             
             <!-- Canvas HUD Badges -->
             <div class="hud-layer">
@@ -152,6 +166,10 @@
               </div>
               <div class="hud-bottom">
                 <span id="badgeFps" class="hud-pill stat-pill">0 FPS</span>
+                <span id="lightingWarning" class="hud-pill lighting-warn-pill hidden" role="status" aria-live="polite">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+                  <span>Low Light — Adjust Lighting</span>
+                </span>
                 <span id="badgeLatency" class="hud-pill stat-pill">0 ms</span>
               </div>
             </div>
@@ -292,10 +310,28 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span>Copy</span>
               </button>
+              <button id="btnSaveWord" class="control-btn save-btn" type="button" title="Save Word / Sentence">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <span>Save</span>
+              </button>
               <button id="btnClear" class="control-btn danger" title="Clear Entire Text">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                 <span>Clear All</span>
               </button>
+            </div>
+
+            <!-- Saved Words & Sentences Shelf -->
+            <div class="saved-words-card">
+              <div class="saved-words-header">
+                <span class="section-micro-label">💾 Saved Words (<span id="savedWordsCount">0</span>):</span>
+                <div class="saved-words-actions">
+                  <button id="btnExportSavedWords" class="small-tool-btn" type="button" title="Download saved words as .txt">Export TXT</button>
+                  <button id="btnClearSavedWords" class="small-tool-btn danger" type="button" title="Clear all saved words">Clear</button>
+                </div>
+              </div>
+              <div id="savedWordsList" class="saved-words-list">
+                <span class="saved-empty">Click "Save" to bookmark words or sentences for quick reuse.</span>
+              </div>
             </div>
 
             <!-- AI Grammar Polish, Hindi Translator & Dynamic Motion Mode -->
@@ -356,6 +392,18 @@
           <!-- Tab 2: Gamified Practice & Quiz Arena -->
           <div id="tab-practice" class="tab-panel">
             <div class="practice-arena">
+              <!-- Game Mode & High Score Bar -->
+              <div class="quiz-mode-bar">
+                <div class="quiz-mode-pills">
+                  <button id="btnModeEndless" class="quiz-mode-btn active" type="button">🎯 Endless</button>
+                  <button id="btnModeBlitz" class="quiz-mode-btn" type="button">⏱️ 60s Blitz</button>
+                </div>
+                <div class="quiz-badges-group">
+                  <span id="quizComboBadge" class="quiz-combo-pill">Combo x1</span>
+                  <span class="quiz-best-pill">🏆 Best Streak: <strong id="quizBestStreak">0</strong></span>
+                </div>
+              </div>
+
               <!-- Score and Stats Bar -->
               <div class="quiz-stats-row">
                 <div class="stat-box">
@@ -370,17 +418,23 @@
                   <span class="stat-number" id="quizAccuracy">100%</span>
                   <span class="stat-label">Accuracy</span>
                 </div>
+                <div class="stat-box">
+                  <span class="stat-number" id="quizTimer">#1</span>
+                  <span class="stat-label" id="quizTimerLabel">Round</span>
+                </div>
               </div>
 
               <!-- Challenge Target Sign Card -->
-              <div class="challenge-card">
+              <div id="challengeCard" class="challenge-card">
+                <div id="challengeBurst" class="challenge-burst" aria-hidden="true"></div>
                 <div class="challenge-badge">Target Gesture Challenge</div>
                 <div class="challenge-img-wrap">
                   <img id="challengeImg" src="{% static 'recognizer/img/signs/asl_a.svg' %}" alt="Practice Target Sign" class="challenge-img">
                 </div>
                 <div id="challengeLetter" class="challenge-letter">Sign: "A"</div>
                 <div id="challengeHint" class="challenge-hint">Make a fist with thumb resting alongside the index finger.</div>
-                
+                <div id="challengeLiveFeed" class="challenge-live-feed">✋ Show hand in camera to begin…</div>
+
                 <div class="challenge-progress">
                   <span id="challengeHoldText">Hold sign steadily in view…</span>
                   <div class="progress-track">
@@ -549,8 +603,10 @@
                 <div class="gallery-cat-tabs">
                   <button class="cat-pill active" data-category="all">All Signs</button>
                   <button class="cat-pill" data-category="asl">ASL (A–Z)</button>
-                  <button class="cat-pill" data-category="isl">ISL (Indian Sign Language)</button>
+                  <button class="cat-pill" data-category="isl">ISL (A–Z)</button>
                   <button class="cat-pill" data-category="numbers">Numbers (0–9)</button>
+                  <button class="cat-pill" data-category="actions">Actions &amp; GIFs</button>
+                  <button id="btnToggleGalleryDiagram" class="cat-pill" type="button" title="Toggle between AI Skeleton / Local Diagrams and Wikimedia Photos">🦴 AI Diagrams</button>
                 </div>
 
                 <!-- Alphabet Quick-Jump Strip -->
@@ -734,7 +790,8 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script type="module" src="{% static 'recognizer/app.js' %}?v=2.8"></script>
+  <script src="{% static 'recognizer/ux_monitors.js' %}?v=1.0"></script>
+  <script type="module" src="{% static 'recognizer/app.js' %}?v=2.10"></script>
   <script type="module" src="{% static 'recognizer/studio_features.js' %}?v=1.1"></script>
 </body>
 </html>

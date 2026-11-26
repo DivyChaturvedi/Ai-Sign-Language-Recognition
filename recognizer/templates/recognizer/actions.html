@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'recognizer/style.css' %}?v=1.2">
+  <link rel="stylesheet" href="{% static 'recognizer/style.css' %}?v=1.3">
 </head>
 <body>
   <!-- 3D Animated Ambient Background Orbs & Cyber Grid -->
@@ -79,6 +79,20 @@
               <span class="hud-bracket br"></span>
               <div class="hud-scanline"></div>
             </div>
+
+            <!-- Interactive Hand Positioning Guide Overlay -->
+            <div id="handGuideOverlay" class="hand-guide-overlay state-idle hidden" aria-hidden="true">
+              <div class="hand-guide-frame">
+                <span class="hg-corner tl"></span>
+                <span class="hg-corner tr"></span>
+                <span class="hg-corner bl"></span>
+                <span class="hg-corner br"></span>
+              </div>
+              <div id="handGuidePill" class="hand-guide-pill">
+                <span class="hg-dot"></span>
+                <span id="handGuideText">Place 1 or 2 hands inside guide frame</span>
+              </div>
+            </div>
             
             <!-- Canvas HUD Badges -->
             <div class="hud-layer">
@@ -94,6 +108,10 @@
               </div>
               <div class="hud-bottom">
                 <span id="badgeFps" class="hud-pill stat-pill">0 FPS</span>
+                <span id="lightingWarning" class="hud-pill lighting-warn-pill hidden" role="status" aria-live="polite">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+                  <span>Low Light — Adjust Lighting</span>
+                </span>
                 <span id="badgeLatency" class="hud-pill stat-pill">0 ms</span>
               </div>
             </div>
@@ -246,6 +264,7 @@
     </main>
   </div>
 
-  <script src="{% static 'recognizer/actions_app.js' %}?v=2.6"></script>
+  <script src="{% static 'recognizer/ux_monitors.js' %}?v=1.0"></script>
+  <script src="{% static 'recognizer/actions_app.js' %}?v=2.7"></script>
 </body>
 </html>

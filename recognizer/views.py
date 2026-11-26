@@ -114,22 +114,28 @@ def predict_action_view(request):
         return JsonResponse({"detected": True, **result})
     return JsonResponse({"detected": False, "action": None})
 
+_BUILTIN_ACTIONS = [
+    {"slug": "hello", "action": "Hello / Hi", "phrase": "Hello! How are you?", "emoji": "👋", "category": "Greeting", "gesture": "Open palm waving with spread fingers", "tip": "Keep all 5 fingers spread wide facing the camera."},
+    {"slug": "thank_you", "action": "Thank You", "phrase": "Thank you so much!", "emoji": "🙏", "category": "Courtesy", "gesture": "Open flat hand extending forward from chin", "tip": "Keep fingers joined together near chin height and sweep outward."},
+    {"slug": "i_love_you", "action": "I Love You", "phrase": "I love you!", "emoji": "🤟", "category": "Affection", "gesture": "Thumb, index, and pinky extended upright", "tip": "Keep middle and ring fingers curled firmly while raising thumb, index, and pinky."},
+    {"slug": "namaste", "action": "Namaste / Welcome", "phrase": "Namaste! Welcome!", "emoji": "🪷", "category": "Greeting", "gesture": "Both palms pressed together in front of chest", "tip": "Hold both hands upright symmetrically inside the center guide frame."},
+    {"slug": "help", "action": "Help / Emergency", "phrase": "Please help me!", "emoji": "🆘", "category": "Emergency", "gesture": "Thumbs-up resting on flat open palm", "tip": "Place clenched/thumbs-up hand clearly onto the flat open opposite palm."},
+    {"slug": "yes", "action": "Yes / Affirmative", "phrase": "Yes, I agree!", "emoji": "✊", "category": "Response", "gesture": "Fist held in front with gentle nod", "tip": "Form a closed fist with thumb folded across curled fingers."},
+    {"slug": "no", "action": "No", "phrase": "No, thank you.", "emoji": "🙅", "category": "Response", "gesture": "Index and middle tapping thumb like a beak", "tip": "Keep ring and pinky curled while touching index and middle tips to thumb tip."},
+    {"slug": "good", "action": "Good / Great", "phrase": "Very good, nice job!", "emoji": "👍", "category": "Feedback", "gesture": "Thumbs-up pointing straight upward", "tip": "Point thumb cleanly upward above a closed fist."},
+    {"slug": "bad", "action": "Bad / Dislike", "phrase": "No, that's not good.", "emoji": "👎", "category": "Feedback", "gesture": "Thumbs-down pointing downward", "tip": "Point thumb straight down below your curled fingers."},
+    {"slug": "peace", "action": "Peace / Victory", "phrase": "Peace and victory!", "emoji": "✌️", "category": "Social", "gesture": "Index and middle fingers in a spread V", "tip": "Spread index and middle fingers wide into a clear V with palm facing camera."},
+    {"slug": "stop", "action": "Stop / Wait", "phrase": "Stop, please wait.", "emoji": "✋", "category": "Command", "gesture": "Flat palm facing camera with closed fingers", "tip": "Keep all 4 fingers upright and touching in the middle of the frame."},
+    {"slug": "call_me", "action": "Call Me", "phrase": "Call me later.", "emoji": "🤙", "category": "Social", "gesture": "Thumb and pinky extended to ear (Shaka sign)", "tip": "Extend thumb and pinky outward while curling the middle 3 fingers."},
+    {"slug": "please", "action": "Please", "phrase": "Please, could you help?", "emoji": "🤲", "category": "Courtesy", "gesture": "Both palms open and cupped together", "tip": "Keep both open palms together cleanly inside the camera guide."},
+]
+
+
 @require_GET
 def api_actions_list(request):
     actions = [
-        {"action": "Hello / Hi", "phrase": "Hello! How are you?", "emoji": "👋", "category": "Greeting", "gesture": "Open palm waving with spread fingers"},
-        {"action": "Thank You", "phrase": "Thank you so much!", "emoji": "🙏", "category": "Courtesy", "gesture": "Open flat hand extending forward from chin"},
-        {"action": "I Love You", "phrase": "I love you!", "emoji": "🤟", "category": "Affection", "gesture": "Thumb, index, and pinky extended upright"},
-        {"action": "Namaste / Welcome", "phrase": "Namaste! Welcome!", "emoji": "🪷", "category": "Greeting", "gesture": "Both palms pressed together in front of chest"},
-        {"action": "Help / Emergency", "phrase": "Please help me!", "emoji": "🆘", "category": "Emergency", "gesture": "Thumbs-up resting on flat open palm"},
-        {"action": "Yes / Affirmative", "phrase": "Yes, I agree!", "emoji": "✊", "category": "Response", "gesture": "Fist held in front with gentle nod"},
-        {"action": "No", "phrase": "No, thank you.", "emoji": "🙅", "category": "Response", "gesture": "Index and middle tapping thumb like a beak"},
-        {"action": "Good / Great", "phrase": "Very good, nice job!", "emoji": "👍", "category": "Feedback", "gesture": "Thumbs-up pointing straight upward"},
-        {"action": "Bad / Dislike", "phrase": "No, that's not good.", "emoji": "👎", "category": "Feedback", "gesture": "Thumbs-down pointing downward"},
-        {"action": "Peace / Victory", "phrase": "Peace and victory!", "emoji": "✌️", "category": "Social", "gesture": "Index and middle fingers in a spread V"},
-        {"action": "Stop / Wait", "phrase": "Stop, please wait.", "emoji": "✋", "category": "Command", "gesture": "Flat palm facing camera with closed fingers"},
-        {"action": "Call Me", "phrase": "Call me later.", "emoji": "🤙", "category": "Social", "gesture": "Thumb and pinky extended to ear (Shaka sign)"},
-        {"action": "Please", "phrase": "Please, could you help?", "emoji": "🤲", "category": "Courtesy", "gesture": "Both palms open and cupped together"},
+        {k: a[k] for k in ("action", "phrase", "emoji", "category", "gesture")}
+        for a in _BUILTIN_ACTIONS
     ]
     ml_classes = get_action_classes()
     known = {a["action"] for a in actions}
@@ -255,14 +261,42 @@ def api_dictionary(request):
         entry["is_ai_supported"] = entry["letter"] in isl_supported
 
     numbers = [
-        {"digit": str(i), "name": f"Number {i}", "image_url": f"https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_{i}.svg"}
+        {
+            "digit": str(i),
+            "name": f"Number {i}",
+            "image_url": f"https://commons.wikimedia.org/wiki/Special:FilePath/Sign_language_{i}.svg",
+            "local_fallback": f"/static/recognizer/img/signs/num_{i}.svg",
+        }
         for i in range(10)
+    ]
+
+    actions_ref = [
+        {
+            "letter": a["emoji"],
+            "name": a["action"],
+            "category": "action",
+            "action_category": a["category"],
+            "phrase": a["phrase"],
+            "is_ai_supported": True,
+            "is_animated": True,
+            "image_url": f"/static/recognizer/img/signs/action_{a['slug']}.svg",
+            "local_fallback": f"/static/recognizer/img/signs/action_{a['slug']}.svg",
+            "summary": a["gesture"],
+            "steps": [
+                a["gesture"] + ".",
+                f"Spoken output: \"{a['phrase']}\"",
+                "Hold gesture steadily inside the guide frame in Action Studio (/actions/).",
+            ],
+            "tip": a["tip"],
+        }
+        for a in _BUILTIN_ACTIONS
     ]
 
     return JsonResponse({
         "asl": asl_letters,
         "isl": isl_signs,
         "numbers": numbers,
+        "actions": actions_ref,
         "asl_chart_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Asl_alphabet_gallaudet.svg",
         "isl_chart_url": "/static/recognizer/img/signs/isl_alphabet_chart.svg",
         "isl_chart_online_url": "https://commons.wikimedia.org/wiki/Special:FilePath/British_Sign_Language_chart.png",

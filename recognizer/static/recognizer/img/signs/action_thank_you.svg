@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b0f19" />
+      <stop offset="100%" stop-color="#0f2430" />
+    </linearGradient>
+  </defs>
+  <rect width="320" height="320" rx="20" fill="url(#bgGrad)" stroke="rgba(16, 185, 129, 0.35)" stroke-width="1.5" />
+  <circle cx="160" cy="135" r="96" fill="none" stroke="rgba(6, 182, 212, 0.12)" stroke-width="1.5" stroke-dasharray="6 6">
+    <animateTransform attributeName="transform" type="rotate" from="0 160 135" to="360 160 135" dur="14s" repeatCount="indefinite" />
+  </circle>
+  <g transform="translate(18, 16)">
+    <rect width="74" height="22" rx="6" fill="rgba(16, 185, 129, 0.18)" stroke="#10b981" stroke-width="1"/>
+    <text x="37" y="15" text-anchor="middle" font-family="system-ui" font-size="10.5" font-weight="800" fill="#34d399">ACTION</text>
+  </g>
+  <g transform="translate(226, 16)">
+    <rect width="76" height="22" rx="6" fill="rgba(245, 158, 11, 0.16)" stroke="rgba(245, 158, 11, 0.45)" stroke-width="1"/>
+    <text x="38" y="15" text-anchor="middle" font-family="system-ui" font-size="10" font-weight="700" fill="#fbbf24">COURTESY</text>
+  </g>
+  <g>
+    <circle cx="160" cy="135" r="56" fill="rgba(16, 185, 129, 0.12)" stroke="rgba(6, 182, 212, 0.45)" stroke-width="2" />
+    <text x="160" y="156" text-anchor="middle" font-size="68">🙏</text>
+    <animateTransform attributeName="transform" type="translate" values="0 0;18 14;0 0" dur="1.4s" repeatCount="indefinite" />
+  </g>
+  <g transform="translate(16, 266)">
+    <rect width="288" height="38" rx="10" fill="rgba(15, 23, 42, 0.9)" stroke="rgba(255, 255, 255, 0.1)" stroke-width="1" />
+    <text x="144" y="16" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" font-weight="800" fill="#f8fafc">Thank You</text>
+    <text x="144" y="30" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-size="9.5" font-weight="500" fill="#94a3b8">Flat palm moves forward from chin</text>
+  </g>
+</svg>
