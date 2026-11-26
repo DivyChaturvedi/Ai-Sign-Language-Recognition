@@ -171,11 +171,13 @@ def train_motion_model():
     X_arr = np.asarray(X, dtype=np.float32)
     y_arr = np.asarray(y)
 
-    model = RandomForestClassifier(n_estimators=150, n_jobs=1, random_state=42)
+    model = RandomForestClassifier(
+        n_estimators=150, max_depth=20, min_samples_leaf=2, n_jobs=1, random_state=42
+    )
     model.fit(X_arr, y_arr)
 
     MOTION_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, MOTION_MODEL_PATH)
+    joblib.dump(model, MOTION_MODEL_PATH, compress=3)
     invalidate_motion_cache()
 
     classes = [str(c) for c in model.classes_]

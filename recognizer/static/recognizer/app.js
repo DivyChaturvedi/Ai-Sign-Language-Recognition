@@ -110,6 +110,7 @@ const iconPlay = getEl("iconPlay");
 const btnMirrorCam = getEl("btnMirrorCam");
 const btnToggleSkeleton = getEl("btnToggleSkeleton");
 const btnCaptureFrame = getEl("btnCaptureFrame");
+const btnStopCam = getEl("btnStopCam");
 
 // Audio & Theme Controls
 const btnAudioToggle = getEl("btnAudioToggle");
@@ -305,7 +306,8 @@ function showToast(message) {
 }
 
 // ---- Status and HUD Updates ----
-let cameraState = "starting"; // starting | active | paused | error
+let cameraState = "starting"; // starting | active | paused | stopped | error
+let isCameraStopped = false;
 let modelState = "loading";   // loading | ready | error
 let cameraErrorMsg = "";
 let modelErrorMsg = "";
@@ -318,6 +320,10 @@ function setStatus(msg, isError = false) {
 function syncStatus(trackingNote = null) {
   if (cameraState === "error") {
     setStatus(cameraErrorMsg || "Camera error", true);
+    return;
+  }
+  if (cameraState === "stopped") {
+    setStatus("Camera stopped");
     return;
   }
   if (cameraState === "starting") {
@@ -466,6 +472,8 @@ async function startCamera(deviceId = null) {
 
   const stream = await navigator.mediaDevices.getUserMedia(constraints);
   currentStream = stream;
+  isCameraStopped = false;
+  updateStopCamButton(false);
 
   if (video) {
     video.srcObject = stream;
@@ -536,9 +544,63 @@ if (btnMirrorCam) {
   });
 }
 
+// Stop / Start camera hardware completely
+function updateStopCamButton(stopped) {
+  if (!btnStopCam) return;
+  btnStopCam.classList.toggle("stopped", stopped);
+  btnStopCam.textContent = stopped ? "▶ Start Camera" : "⏹ Stop Camera";
+}
+
+if (btnStopCam) {
+  btnStopCam.addEventListener("click", async () => {
+    if (!isCameraStopped) {
+      isCameraStopped = true;
+      isVideoPaused = false;
+      cameraState = "stopped";
+      if (iconPause) iconPause.classList.remove("hidden");
+      if (iconPlay) iconPlay.classList.add("hidden");
+      stopLaptopCamera();
+      latestLandmarks = [];
+      resetHold();
+      resetSmoother();
+      locked = null;
+      if (letterEl) letterEl.textContent = "–";
+      if (confidenceTag) confidenceTag.textContent = "0%";
+      if (handsText) handsText.textContent = "0 Hands";
+      if (badgeFps) badgeFps.textContent = "0 FPS";
+      updateStopCamButton(true);
+      syncStatus();
+      showToast("Camera stopped");
+    } else {
+      isCameraStopped = false;
+      cameraState = "starting";
+      updateStopCamButton(false);
+      syncStatus();
+      try {
+        await startCamera(cameraSelect ? cameraSelect.value : null);
+        cameraState = "active";
+        syncStatus();
+        requestAnimationFrame(loop);
+        showToast("Camera started");
+      } catch (err) {
+        isCameraStopped = true;
+        cameraState = "error";
+        cameraErrorMsg = "Camera error: " + (err.message || "Could not start camera");
+        updateStopCamButton(true);
+        showCameraErrorOverlay(err);
+        syncStatus();
+      }
+    }
+  });
+}
+
 // Pause / Resume camera
 if (btnPauseCam) {
   btnPauseCam.addEventListener("click", () => {
+    if (isCameraStopped) {
+      btnStopCam?.click();
+      return;
+    }
     isVideoPaused = !isVideoPaused;
     if (isVideoPaused) {
       cameraState = "paused";
@@ -1035,7 +1097,7 @@ function drawSkeleton(landmarks) {
 }
 
 function loop() {
-  if (remoteMode) return;
+  if (remoteMode || isCameraStopped) return;
   if (!isVideoPaused && video && video.currentTime !== lastVideoTime) {
     lastVideoTime = video.currentTime;
     const now = performance.now();

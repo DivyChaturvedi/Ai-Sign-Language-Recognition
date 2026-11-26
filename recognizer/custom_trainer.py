@@ -62,11 +62,13 @@ def _retrain_static_model(mode: str):
         X = np.vstack([X, _mirror_features(X)])
         y = np.concatenate([y, y])
 
-    model = RandomForestClassifier(n_estimators=200, n_jobs=1, random_state=42)
+    model = RandomForestClassifier(
+        n_estimators=150, max_depth=22, min_samples_leaf=2, n_jobs=1, random_state=42
+    )
     model.fit(X, y)
 
     model_path.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(model, model_path)
+    joblib.dump(model, model_path, compress=3)
     predictor._models.pop(mode, None)
     return {"classes": [str(c) for c in model.classes_], "samples": len(rows)}
 

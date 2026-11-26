@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'recognizer/style.css' %}">
+  <link rel="stylesheet" href="{% static 'recognizer/style.css' %}?v=1.2">
 </head>
 <body>
   <!-- 3D Animated Ambient Background Orbs & Cyber Grid -->
@@ -121,6 +121,7 @@
               <button id="btnToggleSkeleton" class="tool-btn active" title="Toggle AI Hand Skeleton Wireframe" aria-label="Toggle Skeleton">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3"/><path d="M12 19v3"/><path d="M2 12h3"/><path d="M19 12h3"/><path d="M5 5l2 2"/><path d="M17 17l2 2"/><path d="M5 19l2-2"/><path d="M17 5l2 2"/></svg>
               </button>
+              <button id="btnStopCam" class="tool-btn cam-stop-btn" type="button" title="Stop / Start Camera" aria-label="Stop Camera">⏹ Stop Camera</button>
             </div>
           </div>
         </div>
@@ -245,6 +246,6 @@
     </main>
   </div>
 
-  <script src="{% static 'recognizer/actions_app.js' %}?v=2.1"></script>
+  <script src="{% static 'recognizer/actions_app.js' %}?v=2.3"></script>
 </body>
 </html>

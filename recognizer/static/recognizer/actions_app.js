@@ -60,6 +60,7 @@
   const iconPlay = document.getElementById("iconPlay");
   const btnFlipCam = document.getElementById("btnFlipCam");
   const btnToggleSkeleton = document.getElementById("btnToggleSkeleton");
+  const btnStopCam = document.getElementById("btnStopCam");
 
   const actionHeroEmoji = document.getElementById("actionHeroEmoji");
   const actionHeroName = document.getElementById("actionHeroName");
@@ -515,7 +516,8 @@
   // ==========================================================================
   // MediaPipe HandLandmarker Setup & Dedicated Action Camera Loop
   // ==========================================================================
-  let cameraState = "starting"; // starting | active | paused | error
+  let cameraState = "starting"; // starting | active | paused | stopped | error
+  let isCameraStopped = false;
   let modelState = "loading";   // loading | ready | error
   let cameraErrText = "";
   let modelErrText = "";
@@ -523,6 +525,10 @@
   function syncActionStatus() {
     if (cameraState === "error") {
       updateStatus(cameraErrText || "Camera access denied or unavailable", "danger");
+      return;
+    }
+    if (cameraState === "stopped") {
+      updateStatus("Camera Stopped", "warning");
       return;
     }
     if (cameraState === "paused") {
@@ -604,6 +610,12 @@
     syncActionStatus();
   }
 
+  function updateActionStopBtn(stopped) {
+    if (!btnStopCam) return;
+    btnStopCam.classList.toggle("stopped", stopped);
+    btnStopCam.textContent = stopped ? "▶ Start Camera" : "⏹ Stop Camera";
+  }
+
   async function initCamera(deviceId = null) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       cameraState = "error";
@@ -628,6 +640,8 @@
       syncActionStatus();
       currentStream = await navigator.mediaDevices.getUserMedia(constraints);
       video.srcObject = currentStream;
+      isCameraStopped = false;
+      updateActionStopBtn(false);
 
       try {
         await video.play();
@@ -841,9 +855,43 @@
       });
     }
 
+    if (btnStopCam) {
+      btnStopCam.addEventListener("click", async () => {
+        if (!isCameraStopped) {
+          isCameraStopped = true;
+          isPaused = false;
+          cameraState = "stopped";
+          if (iconPause) iconPause.classList.remove("hidden");
+          if (iconPlay) iconPlay.classList.add("hidden");
+          if (animFrameId) {
+            cancelAnimationFrame(animFrameId);
+            animFrameId = null;
+          }
+          if (currentStream) {
+            currentStream.getTracks().forEach((t) => t.stop());
+            currentStream = null;
+          }
+          if (video) video.srcObject = null;
+          if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (handsText) handsText.textContent = "0 Hands";
+          if (badgeFps) badgeFps.textContent = "0 FPS";
+          updateActionStopBtn(true);
+          syncActionStatus();
+        } else {
+          isCameraStopped = false;
+          updateActionStopBtn(false);
+          await initCamera(cameraSelect ? cameraSelect.value : null);
+        }
+      });
+    }
+
     // Pause / Resume
     if (btnPauseCam) {
       btnPauseCam.addEventListener("click", () => {
+        if (isCameraStopped) {
+          btnStopCam?.click();
+          return;
+        }
         isPaused = !isPaused;
         if (isPaused) {
           cameraState = "paused";

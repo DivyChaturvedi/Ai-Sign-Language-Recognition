@@ -6,8 +6,15 @@ Real-time **ASL & ISL Alphabet Recognition** and **Action-to-Speech** web applic
 
 ## ✨ Features
 
-- **🔤 Alphabet Studio (`/`):** Real-time single-hand (**ASL**) and two-hand (**ISL**) letter recognition, live sentence builder, Practice Arena quiz, and SVG sign gallery.
+- **🔤 Alphabet Studio (`/`):** Real-time **ASL (1-hand)** & **ISL (2-hand)** recognition with Temporal EMA smoothing, live sentence builder, TTS speech, and ASL/ISL sign charts.
 - **🗣️ Action & Voice Studio (`/actions/`):** Detects 13 everyday gestures (Hello, Namaste, Thank You, Help, Yes, No, Peace, Stop, etc.) and speaks them aloud automatically.
+- **🔄 Two-Way Sign Communication:** Speak via microphone or type text to animate sequential gesture & SVG sign cards for reverse communication.
+- **🎞️ Dynamic Motion Recognition:** Resampled 16-frame trajectory classifier + geometric detector for motion signs (**J**, **Z**, and custom words).
+- **🎓 Browser Custom Sign Trainer:** Record static or dynamic sign samples directly in the web UI (no terminal required) and retrain the model live.
+- **✨ Grammar Polish & Hindi Translation:** Converts sign glosses (e.g. `"I STORE GO"` → `"I am going to the store."`) and translates/speaks in Hindi.
+- **🎬 Video Upload Subtitles:** Scan uploaded `.mp4`/`.webm` sign videos to generate clickable timestamped transcripts and export `.SRT` / `.TXT` files.
+- **📊 Student Progress Dashboard:** Persists Practice Arena scores in SQLite, tracking overall accuracy and weak letters (`<75%`).
+- **📱 Mobile QR Camera Sync & Stop Camera:** Scan a QR code to use your phone's camera while displaying live signs on laptop, plus one-click **Stop / Start Camera** hardware control.
 
 ---
 
@@ -86,6 +93,17 @@ python ml/train_model.py --language isl
 ```
 *(Tip: Use `--person divy_v2` instead of deleting if you want to keep old samples and add new ones.)*
 
+### Import Full A–Z Image Dataset (Kaggle ASL / ISL)
+```powershell
+# Extract landmarks from unzipped A..Z image folders:
+python ml/import_image_dataset.py --language asl --dataset-dir "C:\path\to\asl_alphabet_train" --max-per-class 500 --replace-source
+python ml/import_image_dataset.py --language isl --dataset-dir "C:\path\to\Indian" --max-per-class 300 --replace-source
+
+# Train the corresponding model:
+python ml/train_model.py --language asl
+python ml/train_model.py --language isl
+```
+
 ---
 
 ## 🧪 Run Tests
@@ -120,4 +138,4 @@ Ai-Sign-Language-Recognition/
 ---
 
 ## ⚙️ Tech Stack
-Django • Google MediaPipe • Scikit-Learn • OpenCV • NumPy • Web Speech API
+Django • Google MediaPipe • Scikit-Learn • OpenCV • NumPy • Pandas • deep-translator • Web Speech API • SQLite • Gunicorn • WhiteNoise

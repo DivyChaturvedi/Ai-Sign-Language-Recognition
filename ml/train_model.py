@@ -43,15 +43,19 @@ X = df[[f"f{i}" for i in range(n_feat)]].values
 y = df["label"].values
 
 persons = df["person"].unique()
+use_person_split = False
 if len(persons) > 1:
     test_person = persons[-1]
     mask = (df["person"] == test_person).values
-    X_train, X_test, y_train, y_test = X[~mask], X[mask], y[~mask], y[mask]
-    print(f"Testing on unseen person: {test_person}")
-else:
+    if set(y[~mask]) == set(y):
+        use_person_split = True
+        X_train, X_test, y_train, y_test = X[~mask], X[mask], y[~mask], y[mask]
+        print(f"Testing on unseen person: {test_person}")
+
+if not use_person_split:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, stratify=y, random_state=42)
-    print("Only one person: random split (accuracy will look optimistic)")
+    print("Stratified 80/20 split (covers all classes)")
 
 if MIRROR:
     X_train = np.vstack([X_train, mirror(X_train)])
@@ -59,7 +63,9 @@ if MIRROR:
     X_test_left = mirror(X_test)
 
 models = {
-    "RandomForest": RandomForestClassifier(n_estimators=300, n_jobs=-1, random_state=42),
+    "RandomForest": RandomForestClassifier(
+        n_estimators=150, max_depth=22, min_samples_leaf=2, n_jobs=-1, random_state=42
+    ),
     "SVM": make_pipeline(StandardScaler(), CalibratedClassifierCV(SVC(C=10, kernel="rbf"), cv=3)),
 }
 
@@ -90,5 +96,5 @@ best_model.fit(X_full, y_full)
 if hasattr(best_model, "n_jobs"):
     best_model.n_jobs = 1  # Fast single-sample online inference
 model_path.parent.mkdir(parents=True, exist_ok=True)
-joblib.dump(best_model, model_path)
-print("Saved", model_path)
+joblib.dump(best_model, model_path, compress=3)
+print("Saved", model_path, f"({model_path.stat().st_size / (1024 * 1024):.2f} MB)")

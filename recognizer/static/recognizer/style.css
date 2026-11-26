@@ -3844,3 +3844,33 @@ select optgroup,
   color: #34d399;
   font-weight: 700;
 }
+
+.cam-stop-btn {
+  width: auto !important;
+  padding: 0 11px !important;
+  font-size: 0.78rem;
+  font-weight: 700;
+  gap: 5px;
+  white-space: nowrap;
+  background: rgba(239, 68, 68, 0.16) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+.cam-stop-btn:hover {
+  background: rgba(239, 68, 68, 0.28) !important;
+}
+
+.cam-stop-btn.stopped {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+[data-theme="light"] .cam-stop-btn {
+  color: #b91c1c !important;
+}
+
+[data-theme="light"] .cam-stop-btn.stopped {
+  color: #047857 !important;
+}
