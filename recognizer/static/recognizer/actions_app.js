@@ -8,8 +8,8 @@
 
   // ---- Default Settings & State ----
   let CONFIG = {
-    predictIntervalMs: 80,
-    holdFrames: 4,
+    predictIntervalMs: 70,
+    holdFrames: 3,
     minConfidence: 0.70,
     soundEffects: true,
     skeletonStyle: "cyber", // cyber, emerald, minimal, hidden
@@ -199,21 +199,25 @@
 
   function analyzeHandLandmarks(hand) {
     const wrist = hand[0];
-    const thumb_tip = hand[4], thumb_ip = hand[3];
-    const index_tip = hand[8], index_pip = hand[6], index_mcp = hand[5];
-    const mid_tip = hand[12], mid_pip = hand[10], mid_mcp = hand[9];
-    const ring_tip = hand[16], ring_pip = hand[14];
-    const pinky_tip = hand[20], pinky_pip = hand[18], pinky_mcp = hand[17];
+    const thumb_mcp = hand[2], thumb_ip = hand[3], thumb_tip = hand[4];
+    const index_mcp = hand[5], index_pip = hand[6], index_tip = hand[8];
+    const mid_mcp = hand[9], mid_pip = hand[10], mid_tip = hand[12];
+    const ring_pip = hand[14], ring_tip = hand[16];
+    const pinky_mcp = hand[17], pinky_pip = hand[18], pinky_tip = hand[20];
 
     const palmScale = Math.max(dist3d(wrist, mid_mcp), 0.001);
 
     // Rotation-invariant wrist-to-tip vs wrist-to-PIP distances (matches backend action_predictor.py)
-    const indexExt = dist3d(wrist, index_tip) > dist3d(wrist, index_pip) * 1.18;
-    const midExt = dist3d(wrist, mid_tip) > dist3d(wrist, mid_pip) * 1.18;
-    const ringExt = dist3d(wrist, ring_tip) > dist3d(wrist, ring_pip) * 1.18;
-    const pinkyExt = dist3d(wrist, pinky_tip) > dist3d(wrist, pinky_pip) * 1.18;
+    const indexExt = dist3d(wrist, index_tip) > dist3d(wrist, index_pip) * 1.14;
+    const midExt = dist3d(wrist, mid_tip) > dist3d(wrist, mid_pip) * 1.14;
+    const ringExt = dist3d(wrist, ring_tip) > dist3d(wrist, ring_pip) * 1.14;
+    const pinkyExt = dist3d(wrist, pinky_tip) > dist3d(wrist, pinky_pip) * 1.14;
+
     const thumbDistPinky = dist3d(thumb_tip, pinky_mcp) / palmScale;
-    const thumbExt = dist3d(wrist, thumb_tip) > dist3d(wrist, thumb_ip) * 1.12 && thumbDistPinky > 0.78;
+    const thumbDistIdxMcp = dist3d(thumb_tip, index_mcp) / palmScale;
+    const thumbExt =
+      (dist3d(wrist, thumb_tip) > dist3d(wrist, thumb_ip) * 1.05 && thumbDistPinky > 0.62) ||
+      thumbDistIdxMcp > 0.65;
 
     const numExtended = (indexExt ? 1 : 0) + (midExt ? 1 : 0) + (ringExt ? 1 : 0) + (pinkyExt ? 1 : 0);
 
@@ -223,7 +227,7 @@
     const pinchThumbMid = dist3d(thumb_tip, mid_tip) / palmScale;
 
     return {
-      wrist, palmScale,
+      wrist, palmScale, thumb_mcp, index_mcp, mid_mcp,
       thumb_tip, index_tip, mid_tip, ring_tip, pinky_tip,
       thumbExt, indexExt, midExt, ringExt, pinkyExt, numExtended,
       spreadIdxMid, spreadMidRng, pinchThumbIdx, pinchThumbMid,
@@ -243,22 +247,22 @@
       const tipDist = dist3d(h1.mid_tip, h2.mid_tip) / avgScale;
 
       // Namaste / Welcome: Both palms pressed together upright
-      if (wristDist < 1.4 && tipDist < 0.9 && h1.numExtended >= 3 && h2.numExtended >= 3) {
+      if (wristDist < 1.6 && tipDist < 1.1 && h1.numExtended >= 3 && h2.numExtended >= 3) {
         return { action: "Namaste / Welcome", phrase: "Namaste! Welcome!", emoji: "🪷", category: "Greeting" };
       }
 
       // Help / Emergency: Thumbs-up resting on flat open palm
       const h1Flat = h1.numExtended >= 3;
       const h2Flat = h2.numExtended >= 3;
-      const h1ThumbUp = h1.thumbExt && h1.numExtended === 0 && h1.thumb_tip.y < h1.wrist.y;
-      const h2ThumbUp = h2.thumbExt && h2.numExtended === 0 && h2.thumb_tip.y < h2.wrist.y;
+      const h1ThumbUp = h1.thumbExt && h1.numExtended === 0 && h1.thumb_tip.y < h1.index_mcp.y;
+      const h2ThumbUp = h2.thumbExt && h2.numExtended === 0 && h2.thumb_tip.y < h2.index_mcp.y;
       if ((h1Flat && h2ThumbUp) || (h2Flat && h1ThumbUp)) {
         return { action: "Help / Emergency", phrase: "Please help me!", emoji: "🆘", category: "Emergency" };
       }
 
       // Please: Both palms open and cupped together side-by-side
       const palmLevelDiff = Math.abs(h1.wrist.y - h2.wrist.y) / avgScale;
-      if (palmLevelDiff < 0.7 && wristDist < 2.2 && h1.numExtended >= 4 && h2.numExtended >= 4) {
+      if (palmLevelDiff < 0.85 && wristDist < 2.5 && h1.numExtended >= 3 && h2.numExtended >= 3) {
         return { action: "Please", phrase: "Please, could you help?", emoji: "🤲", category: "Courtesy" };
       }
     }
@@ -275,22 +279,22 @@
     }
 
     // Peace / Victory: Index and Middle extended in V shape
-    if (h1.indexExt && h1.midExt && !h1.ringExt && !h1.pinkyExt && h1.spreadIdxMid > 0.35) {
+    if (h1.indexExt && h1.midExt && !h1.ringExt && !h1.pinkyExt && h1.spreadIdxMid > 0.24) {
       return { action: "Peace / Victory", phrase: "Peace and victory!", emoji: "✌️", category: "Social" };
     }
 
     // No: Pinched index & middle tips near thumb (checked BEFORE Thumbs Up / Yes so beak pinch isn't shadowed!)
-    if (h1.pinchThumbIdx < 0.38 && h1.pinchThumbMid < 0.45 && !h1.pinkyExt && !h1.ringExt) {
+    if (h1.pinchThumbIdx < 0.44 && h1.pinchThumbMid < 0.50 && !h1.pinkyExt && !h1.ringExt) {
       return { action: "No", phrase: "No, thank you.", emoji: "🙅", category: "Response" };
     }
 
-    // Good / Thumbs Up: Thumb pointing UP relative to palm scale
-    if (h1.thumbExt && h1.numExtended === 0 && (h1.wrist.y - h1.thumb_tip.y) > 0.55 * h1.palmScale) {
+    // Good / Thumbs Up: Thumb clearly pointing upward above thumb MCP / index knuckle
+    if (h1.thumbExt && h1.numExtended === 0 && h1.thumb_tip.y < h1.thumb_mcp.y - 0.15 * h1.palmScale && h1.thumb_tip.y < h1.wrist.y) {
       return { action: "Good / Great", phrase: "Very good, nice job!", emoji: "👍", category: "Feedback" };
     }
 
-    // Bad / Thumbs Down: Thumb pointing DOWN relative to palm scale
-    if (h1.thumbExt && h1.numExtended === 0 && (h1.thumb_tip.y - h1.wrist.y) > 0.45 * h1.palmScale) {
+    // Bad / Thumbs Down: Thumb clearly pointing downward below thumb MCP / knuckles
+    if (h1.thumbExt && h1.numExtended === 0 && h1.thumb_tip.y > h1.thumb_mcp.y + 0.15 * h1.palmScale && h1.thumb_tip.y > h1.mid_mcp.y) {
       return { action: "Bad / Dislike", phrase: "No, that's not good.", emoji: "👎", category: "Feedback" };
     }
 
@@ -299,19 +303,19 @@
       return { action: "Yes / Affirmative", phrase: "Yes, I agree!", emoji: "✊", category: "Response" };
     }
 
-    // Open palm gestures: Hello (spread fingers) vs Stop (closed fingers) vs Thank You (flat palm raised near chin/upper area)
-    if (h1.numExtended === 4 && h1.thumbExt) {
-      const isSpread = h1.spreadIdxMid > 0.42 || h1.spreadMidRng > 0.42;
+    // Open palm gestures: Hello (spread fingers) vs Thank You (flat palm raised near chin/upper area) vs Stop (upright closed palm)
+    if (h1.numExtended >= 4) {
+      const isSpread = h1.spreadIdxMid > 0.40 || h1.spreadMidRng > 0.38;
       if (isSpread) {
         return { action: "Hello / Hi", phrase: "Hello! How are you?", emoji: "👋", category: "Greeting" };
       }
-      if (h1.wrist.y < 0.48) {
+      if (h1.mid_tip.y < 0.42) {
         return { action: "Thank You", phrase: "Thank you so much!", emoji: "🙏", category: "Courtesy" };
       }
       return { action: "Stop / Wait", phrase: "Stop, please wait.", emoji: "✋", category: "Command" };
     }
 
-    if (h1.numExtended >= 3 && h1.wrist.y < 0.45) {
+    if (h1.numExtended >= 3 && h1.mid_tip.y < 0.40) {
       return { action: "Thank You", phrase: "Thank you so much!", emoji: "🙏", category: "Courtesy" };
     }
 

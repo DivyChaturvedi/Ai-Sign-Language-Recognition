@@ -25,14 +25,18 @@ def analyze_hand(hand):
     hand_size = max(dist3d(wrist, mid_mcp), 0.001)
 
     # Finger extensions: compare distance from wrist to tip vs wrist to pip
-    index_ext = dist3d(wrist, index_tip) > dist3d(wrist, index_pip) * 1.2
-    mid_ext = dist3d(wrist, mid_tip) > dist3d(wrist, mid_pip) * 1.2
-    ring_ext = dist3d(wrist, ring_tip) > dist3d(wrist, ring_pip) * 1.2
-    pinky_ext = dist3d(wrist, pinky_tip) > dist3d(wrist, pinky_pip) * 1.2
+    index_ext = dist3d(wrist, index_tip) > dist3d(wrist, index_pip) * 1.14
+    mid_ext = dist3d(wrist, mid_tip) > dist3d(wrist, mid_pip) * 1.14
+    ring_ext = dist3d(wrist, ring_tip) > dist3d(wrist, ring_pip) * 1.14
+    pinky_ext = dist3d(wrist, pinky_tip) > dist3d(wrist, pinky_pip) * 1.14
 
-    # Thumb extension: tip distance from pinky MCP and wrist
+    # Thumb extension: tip distance from pinky/index MCP and wrist
     thumb_dist_pinky = dist3d(thumb_tip, pinky_mcp) / hand_size
-    thumb_ext = dist3d(wrist, thumb_tip) > dist3d(wrist, thumb_ip) * 1.15 and thumb_dist_pinky > 0.8
+    thumb_dist_idx_mcp = dist3d(thumb_tip, index_mcp) / hand_size
+    thumb_ext = (
+        (dist3d(wrist, thumb_tip) > dist3d(wrist, thumb_ip) * 1.05 and thumb_dist_pinky > 0.62)
+        or thumb_dist_idx_mcp > 0.65
+    )
 
     # Finger spread / gaps
     spread_idx_mid = dist3d(index_tip, mid_tip) / hand_size
@@ -46,6 +50,9 @@ def analyze_hand(hand):
     return {
         "wrist": wrist,
         "hand_size": hand_size,
+        "thumb_mcp": thumb_mcp,
+        "index_mcp": index_mcp,
+        "mid_mcp": mid_mcp,
         "thumb_tip": thumb_tip,
         "index_tip": index_tip,
         "mid_tip": mid_tip,
@@ -156,7 +163,7 @@ def predict_action(hands):
 
     # Peace / Victory: Index and Middle extended in V, Ring and Pinky curled
     if h["index_ext"] and h["mid_ext"] and (not h["ring_ext"]) and (not h["pinky_ext"]):
-        if h["spread_idx_mid"] > 0.35:
+        if h["spread_idx_mid"] > 0.24:
             return {
                 "action": "Peace / Victory",
                 "phrase": "Peace and victory!",
@@ -167,7 +174,7 @@ def predict_action(hands):
             }
 
     # No: Index & middle pinching thumb tip (beak shape) - check before Thumbs Up / Yes so pinch isn't shadowed
-    if h["pinch_thumb_idx"] < 0.35 and h["pinch_thumb_mid"] < 0.40 and (not h["ring_ext"]) and (not h["pinky_ext"]):
+    if h["pinch_thumb_idx"] < 0.44 and h["pinch_thumb_mid"] < 0.50 and (not h["ring_ext"]) and (not h["pinky_ext"]):
         return {
             "action": "No",
             "phrase": "No, thank you.",
@@ -178,7 +185,7 @@ def predict_action(hands):
         }
 
     # Good / Thumbs Up: Thumb pointing UP, other 4 fingers curled into palm
-    if h["thumb_ext"] and h["num_extended"] == 0 and h["thumb_tip"][1] < h["wrist"][1]:
+    if h["thumb_ext"] and h["num_extended"] == 0 and h["thumb_tip"][1] < h["thumb_mcp"][1] - 0.15 * h["hand_size"] and h["thumb_tip"][1] < h["wrist"][1]:
         return {
             "action": "Good / Nice",
             "phrase": "Very good, nice job!",
@@ -189,7 +196,7 @@ def predict_action(hands):
         }
 
     # Bad / Dislike: Thumb pointing DOWN, other 4 fingers curled
-    if h["thumb_ext"] and h["num_extended"] == 0 and h["thumb_tip"][1] > h["wrist"][1]:
+    if h["thumb_ext"] and h["num_extended"] == 0 and h["thumb_tip"][1] > h["thumb_mcp"][1] + 0.15 * h["hand_size"] and h["thumb_tip"][1] > h["mid_mcp"][1]:
         return {
             "action": "Bad / Dislike",
             "phrase": "No, that's not good.",
@@ -210,20 +217,10 @@ def predict_action(hands):
             "description": "Fist gesture representing agreement/nod."
         }
 
-    # Stop / Wait: Flat open palm with all 5 fingers together
-    if h["num_extended"] == 4 and h["thumb_ext"]:
-        # Check if fingers are closed together or spread wide
-        is_spread = h["spread_idx_mid"] > 0.45 or h["spread_mid_rng"] > 0.45
-        if not is_spread:
-            return {
-                "action": "Stop / Wait",
-                "phrase": "Stop, please wait.",
-                "emoji": "✋",
-                "confidence": 0.95,
-                "category": "Command",
-                "description": "Open flat palm facing camera with closed fingers."
-            }
-        else:
+    # Open palm gestures: Hello (spread) vs Thank You (near upper chin) vs Stop (closed upright)
+    if h["num_extended"] >= 4:
+        is_spread = h["spread_idx_mid"] > 0.40 or h["spread_mid_rng"] > 0.38
+        if is_spread:
             return {
                 "action": "Hello / Hi",
                 "phrase": "Hello! How are you?",
@@ -232,9 +229,26 @@ def predict_action(hands):
                 "category": "Greeting",
                 "description": "Open palm waving with spread fingers."
             }
+        if h["mid_tip"][1] < 0.42:
+            return {
+                "action": "Thank You",
+                "phrase": "Thank you so much!",
+                "emoji": "🙏",
+                "confidence": 0.93,
+                "category": "Courtesy",
+                "description": "Flat hand starting near mouth and extending outward."
+            }
+        return {
+            "action": "Stop / Wait",
+            "phrase": "Stop, please wait.",
+            "emoji": "✋",
+            "confidence": 0.95,
+            "category": "Command",
+            "description": "Open flat palm facing camera with closed fingers."
+        }
 
     # Thank you: Open hand moving forward from chin/face
-    if h["num_extended"] >= 3 and h["wrist"][1] < 0.5:
+    if h["num_extended"] >= 3 and h["mid_tip"][1] < 0.40:
         return {
             "action": "Thank You",
             "phrase": "Thank you so much!",

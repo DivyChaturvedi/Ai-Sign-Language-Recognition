@@ -159,6 +159,16 @@ class PredictAPITest(TestCase):
         self.assertIsNotNone(res_no)
         self.assertEqual(res_no["action"], "No")
 
+        # Closed palm lower-mid frame -> Stop / Wait (mid_tip.y = 1.08 - 0.60 = 0.48 >= 0.42)
+        res_stop = predict_action([_synthetic_open_palm(spread=False, wrist_y=1.08)])
+        self.assertIsNotNone(res_stop)
+        self.assertEqual(res_stop["action"], "Stop / Wait")
+
+        # Closed palm raised near upper chin zone -> Thank You (mid_tip.y = 0.80 - 0.60 = 0.20 < 0.42)
+        res_ty = predict_action([_synthetic_open_palm(spread=False, wrist_y=0.80)])
+        self.assertIsNotNone(res_ty)
+        self.assertEqual(res_ty["action"], "Thank You")
+
     def test_remote_mobile_camera_flow(self):
         # Invalid session ID rejected
         self.assertEqual(self.client.get("/mobile/bad!id/").status_code, 400)
